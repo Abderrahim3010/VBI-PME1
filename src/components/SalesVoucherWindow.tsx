@@ -1,0 +1,2172 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product, Client, SalesVoucher, VoucherItem } from '../types';
+
+interface SalesVoucherWindowProps {
+  products: Product[];
+  clients: Client[];
+  sales: SalesVoucher[];
+  onAddSale: (voucher: SalesVoucher) => void;
+  onUpdateSale: (oldId: string, updatedVoucher: SalesVoucher) => void;
+  onDeleteSale: (id: string) => void;
+  onProductsUpdate: (products: Product[]) => void;
+  onClientsUpdate: (clients: Client[]) => void;
+  onClose: () => void;
+}
+
+export default function SalesVoucherWindow({
+  products,
+  clients,
+  sales,
+  onAddSale,
+  onUpdateSale,
+  onDeleteSale,
+  onProductsUpdate,
+  onClientsUpdate,
+  onClose
+}: SalesVoucherWindowProps) {
+  // Selection/navigation between previous invoices
+  const [selectedSaleId, setSelectedSaleId] = useState<string>(() => {
+    return sales.length > 0 ? sales[sales.length - 1].id : '';
+  });
+
+  // Mode: 'view' or 'create'
+  const [mode, setMode] = useState<'view' | 'create'>('view');
+
+  // Local replicas of products to calculate stock changes in draft / edit mode correctly
+  const [localProducts, setLocalProducts] = useState<Product[]>(products);
+  const [editingVoucherId, setEditingVoucherId] = useState<string | null>(null);
+
+  // Sync local products with props when in view mode
+  useEffect(() => {
+    if (mode === 'view') {
+      setLocalProducts(products);
+    }
+  }, [products, mode]);
+
+  // Mode de paiement modal states
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<'ESPECE' | 'A_TERME'>('ESPECE');
+  const [paymentSource, setPaymentSource] = useState('CAISSE PRINCIPALE');
+  const [paymentVersement, setPaymentVersement] = useState<number>(0);
+
+  // Draft invoice state
+  const [newSaleId, setNewSaleId] = useState('0001');
+  const [newDate, setNewDate] = useState(() => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  });
+  const [newTime, setNewTime] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  });
+
+  const [newClientName, setNewClientName] = useState('');
+  const [newType, setNewType] = useState<'VENTE' | 'RETOUR'>('VENTE');
+  const [vendeurName, setVendeurName] = useState('<Aucun>');
+  const [observations, setObservations] = useState('');
+  const [versement, setVersement] = useState<number>(38200);
+  const [remise, setRemise] = useState<number>(0);
+  const [tvaRate, setTvaRate] = useState<number>(0); // 0% default
+  const [timbreValue, setTimbreValue] = useState<number>(0);
+  const [draftItems, setDraftItems] = useState<VoucherItem[]>([
+    { id: 'item-1', code: '1016359848131', designation: 'CASQUE HOCO W55 .', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 3900, total: 3900 },
+    { id: 'item-2', code: '1010714334765', designation: 'GLASS ESD A07/ A36 A16 OG', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 500, total: 500 },
+    { id: 'item-3', code: '1001065430947', designation: 'INFINIX XPAD 20 4/128', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 30300, total: 30300 },
+    { id: 'item-4', code: '1011879070659', designation: 'CABLE MICRO X89', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 400, total: 400 },
+    { id: 'item-5', code: '1007289312670', designation: 'CABLE TYPEC HDMI', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 2200, total: 2200 },
+    { id: 'item-6', code: '1007398064682', designation: 'OTG HOCO UA17 TC', colisage: 12, nbreColis: 0, pieces: 1, qty: 1, price: 900, total: 900 }
+  ]);
+
+  // Search input state
+  const [showBenefit, setShowBenefit] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProductCode, setSelectedProductCode] = useState('');
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number>(0);
+
+  // Selected table item for showing product helper metrics or "images" on right
+  const [viewingItemCode, setViewingItemCode] = useState<string>('1016359848131');
+
+  // Observations modal states
+  const [isObsModalOpen, setIsObsModalOpen] = useState(false);
+  const [tempObs, setTempObs] = useState('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Product chooser dialogue states
+  const [isProductChooserOpen, setIsProductChooserOpen] = useState(false);
+  const [chooserSearchQuery, setChooserSearchQuery] = useState('');
+  const [selectedProductInChooser, setSelectedProductInChooser] = useState<Product | null>(null);
+  const [chooserQty, setChooserQty] = useState<number>(1);
+  const [selectedPriceType, setSelectedPriceType] = useState<'prixVente1' | 'prixVente2' | 'prixVente3'>('prixVente1');
+  const [customSellingPrice, setCustomSellingPrice] = useState<number>(0);
+  const [isConfigPopupOpen, setIsConfigPopupOpen] = useState(false);
+
+  // Client Selection and Creation Modal states
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientFormName, setClientFormName] = useState('');
+  const [clientFormPhone, setClientFormPhone] = useState('');
+  const [clientFormAddress, setClientFormAddress] = useState('');
+  const [clientFormBalance, setClientFormBalance] = useState<string>('0');
+
+  const handleSelectClient = (clientName: string) => {
+    if (mode !== 'create') {
+      alert("Pour affecter ce client, vous devez d'abord cliquer sur 'Nouveau bon' (F2) ou être en mode modification.");
+      return;
+    }
+    setNewClientName(clientName);
+    setIsClientModalOpen(false);
+  };
+
+  const handleCreateClient = () => {
+    if (!clientFormName.trim()) {
+      alert("Le nom du client est requis.");
+      return;
+    }
+    const duplicate = clients.find(c => c.name.toLowerCase() === clientFormName.trim().toLowerCase());
+    if (duplicate) {
+      alert("Un client avec ce nom existe déjà.");
+      return;
+    }
+
+    const nextCodeNum = clients.length + 1;
+    const generatedCode = 'C-' + String(nextCodeNum).padStart(3, '0');
+    const newClient: Client = {
+      id: 'client-' + Date.now(),
+      code: generatedCode,
+      name: clientFormName.trim(),
+      balance: parseFloat(clientFormBalance) || 0,
+      contact: clientFormPhone.trim() || undefined,
+      address: clientFormAddress.trim() || undefined
+    };
+
+    // Save client
+    onClientsUpdate([...clients, newClient]);
+
+    // If in create mode, automatically select this client
+    if (mode === 'create') {
+      setNewClientName(newClient.name);
+    }
+
+    // Reset form states
+    setClientFormName('');
+    setClientFormPhone('');
+    setClientFormAddress('');
+    setClientFormBalance('0');
+
+    // Close modal
+    setIsClientModalOpen(false);
+
+    alert(`Client "${newClient.name}" créé avec succès !${mode === 'create' ? ' Associé à cette vente.' : ''}`);
+  };
+
+  // Table column widths inside product chooser
+  const [colWidths, setColWidths] = useState({
+    code: 110,
+    designation: 240,
+    prixUnitaire: 110,
+    prixAchat: 110,
+    prixRevient: 110,
+    stock: 75
+  });
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>, colName: keyof typeof colWidths) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colWidths[colName];
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      setColWidths(prev => ({
+        ...prev,
+        [colName]: Math.max(50, startWidth + dx)
+      }));
+    };
+
+    const handlePointerUp = () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  // Search input query to search/filter products already sold in the current voucher
+  const [soldItemsSearchQuery, setSoldItemsSearchQuery] = useState('');
+
+  const activeSaleIndex = sales.findIndex(s => s.id === selectedSaleId);
+
+  const selectedSale = useMemo(() => {
+    if (mode === 'create') return null;
+    return sales.find(s => s.id === selectedSaleId) || sales[sales.length - 1] || null;
+  }, [sales, selectedSaleId, mode]);
+
+  useEffect(() => {
+    if (sales.length > 0 && !selectedSaleId && mode === 'view') {
+      setSelectedSaleId(sales[sales.length - 1].id);
+    }
+  }, [sales, selectedSaleId, mode]);
+
+  // Set default client to Anonyme on initial load or reset
+  useEffect(() => {
+    if (clients.length > 0 && !newClientName) {
+      setNewClientName('Anonyme');
+    }
+  }, [clients, newClientName]);
+
+  // Handle invoice index traversal using pager buttons
+  const handleFirst = () => {
+    if (sales.length > 0) {
+      setSelectedSaleId(sales[0].id);
+      setViewingItemCode(sales[0].items[0]?.code || '');
+      setSelectedItemIndex(0);
+    }
+  };
+  const handlePrev = () => {
+    if (activeSaleIndex > 0) {
+      const prevSale = sales[activeSaleIndex - 1];
+      setSelectedSaleId(prevSale.id);
+      setViewingItemCode(prevSale.items[0]?.code || '');
+      setSelectedItemIndex(0);
+    }
+  };
+  const handleNext = () => {
+    if (activeSaleIndex < sales.length - 1) {
+      const nextSale = sales[activeSaleIndex + 1];
+      setSelectedSaleId(nextSale.id);
+      setViewingItemCode(nextSale.items[0]?.code || '');
+      setSelectedItemIndex(0);
+    }
+  };
+  const handleLast = () => {
+    if (sales.length > 0) {
+      const lastSale = sales[sales.length - 1];
+      setSelectedSaleId(lastSale.id);
+      setViewingItemCode(lastSale.items[0]?.code || '');
+      setSelectedItemIndex(0);
+    }
+  };
+
+  // Locate selected client info
+  const selectedClientObj = useMemo(() => {
+    const name = mode === 'create' ? newClientName : (selectedSale?.client || 'Anonyme');
+    return clients.find(c => c.name === name) || { id: 'anonyme', name: 'Anonyme', balance: 0, phone: '', address: '' };
+  }, [clients, newClientName, selectedSale, mode]);
+
+  // Calculations
+  const computedMetrics = useMemo(() => {
+    const items = mode === 'create' ? draftItems : (selectedSale?.items || []);
+    const rawSum = items.reduce((acc, item) => acc + item.total, 0);
+    
+    // Remise can be specified
+    const activeRemise = mode === 'create' ? remise : (selectedSale?.remise || 0);
+    const totalHT = Math.max(0, rawSum - activeRemise);
+    
+    const activeTvaRate = mode === 'create' ? tvaRate : 0;
+    const tva = totalHT * (activeTvaRate / 100);
+    
+    const activeTimbre = mode === 'create' 
+      ? (totalHT > 15000 ? 50 : 0) 
+      : (selectedSale?.timbre || 0);
+
+    const ttc = totalHT + tva + activeTimbre;
+    const oldBalance = selectedClientObj ? selectedClientObj.balance : 0;
+    
+    const activeVersement = mode === 'create' ? versement : (selectedSale?.versement || 0);
+    const newBalance = oldBalance + (ttc - activeVersement);
+
+    return {
+      rawAmount: rawSum,
+      remise: activeRemise,
+      totalHT,
+      tva,
+      timbre: activeTimbre,
+      ttc,
+      oldBalance,
+      newBalance,
+      totalQty: items.reduce((acc, item) => acc + item.qty, 0),
+      colisCount: items.reduce((acc, item) => acc + (item.nbreColis || 0), 0)
+    };
+  }, [draftItems, selectedSale, mode, selectedClientObj, versement, remise, tvaRate]);
+
+  // Active items helper reference
+  const currentItems = mode === 'create' ? draftItems : (selectedSale?.items || []);
+
+  // Keyboard shortcut Ctrl+B for profit/benefit toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setShowBenefit(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Total Benefit / Margin Calculation
+  const totalBenefit = useMemo(() => {
+    const items = mode === 'create' ? draftItems : (selectedSale?.items || []);
+    const itemsBenefit = items.reduce((acc, item) => {
+      const originalProduct = products.find(p => p.code === item.code);
+      const buyPrice = originalProduct?.prixAchat ?? originalProduct?.prixDeRevient ?? 0;
+      const profitPerUnit = item.price - buyPrice;
+      const itemProfit = profitPerUnit * item.qty;
+      return acc + itemProfit;
+    }, 0);
+    const activeRemise = mode === 'create' ? remise : (selectedSale?.remise || 0);
+    return itemsBenefit - activeRemise;
+  }, [draftItems, selectedSale, mode, remise, products]);
+
+  // Auto-filtering/indexing logic for the sold products table
+  const displayedItems = useMemo(() => {
+    const mapped = currentItems.map((item, originalIndex) => ({
+      ...item,
+      originalIndex
+    }));
+    if (!soldItemsSearchQuery.trim()) return mapped;
+    const q = soldItemsSearchQuery.toLowerCase();
+    return mapped.filter(item => 
+      item.code.toLowerCase().includes(q) || 
+      item.designation.toLowerCase().includes(q)
+    );
+  }, [currentItems, soldItemsSearchQuery]);
+
+  // Set first item as active if none is clicked
+  useEffect(() => {
+    if (currentItems.length > 0) {
+      const codes = currentItems.map(i => i.code);
+      if (!codes.includes(viewingItemCode)) {
+        setViewingItemCode(currentItems[0].code);
+        setSelectedItemIndex(0);
+      }
+    }
+  }, [currentItems, viewingItemCode]);
+
+  const startCreateMode = () => {
+    // Sync starting products
+    setLocalProducts(products);
+
+    const nextNum = (sales.length > 0)
+      ? String(Number(sales[sales.length - 1].id) + 1).padStart(4, '0')
+      : '0001';
+
+    setNewSaleId(nextNum);
+    const d = new Date();
+    setNewDate(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
+    setNewTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`);
+
+    setNewClientName('Anonyme');
+    setNewType('VENTE');
+    setVendeurName('<Aucun>');
+    setObservations('');
+    setVersement(0);
+    setRemise(0);
+    setTvaRate(0);
+    setDraftItems([]);
+    setViewingItemCode('');
+    setSelectedItemIndex(0);
+    setEditingVoucherId(null);
+    setMode('create');
+  };
+
+  const handleDeleteSelectedVoucher = () => {
+    if (mode === 'create') return;
+    if (!selectedSale) {
+      alert("Aucun bon sélectionné pour suppression.");
+      return;
+    }
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteVoucher = () => {
+    if (!selectedSale) return;
+
+    // Call deletion on parent level (which restores stock and balance)
+    onDeleteSale(selectedSale.id);
+
+    // Reset selection in the current component view
+    if (sales.length > 1) {
+      const remainingSales = sales.filter(s => s.id !== selectedSale.id);
+      if (remainingSales.length > 0) {
+        setSelectedSaleId(remainingSales[remainingSales.length - 1].id);
+      }
+    } else {
+      setSelectedSaleId('');
+    }
+
+    setNewClientName('Anonyme');
+    setIsDeleteConfirmOpen(false);
+  };
+
+  const handleEditVoucher = () => {
+    if (!selectedSale) {
+      alert("Aucun bon de livraison sélectionné.");
+      return;
+    }
+
+    // Revert this sale's stock impacts temporarily for the editing workspace
+    const revertedProducts = products.map(p => {
+      const item = selectedSale.items.find(i => i.code === p.code);
+      if (item) {
+        const revStock = p.stock + item.qty;
+        return {
+          ...p,
+          stock: revStock,
+          stockColis: Math.ceil(revStock / 12)
+        };
+      }
+      return p;
+    });
+
+    setLocalProducts(revertedProducts);
+    setEditingVoucherId(selectedSale.id);
+    setNewSaleId(selectedSale.id);
+    setNewDate(selectedSale.date);
+    setNewTime(selectedSale.time);
+    setNewClientName(selectedSale.client);
+    setNewType(selectedSale.type || 'VENTE');
+    setDraftItems([...selectedSale.items]);
+    setVersement(selectedSale.versement || 0);
+    setRemise(selectedSale.remise || 0);
+    setTvaRate(selectedSale.tva ? 19 : 0);
+    setObservations(selectedSale.observations || '');
+    setVendeurName(selectedSale.vendeur || '<Aucun>');
+
+    setSelectedItemIndex(selectedSale.items.length > 0 ? 0 : -1);
+    if (selectedSale.items.length > 0) {
+      setViewingItemCode(selectedSale.items[0].code);
+    } else {
+      setViewingItemCode('');
+    }
+    setMode('create');
+  };
+
+  const handleCloseAndSaveVoucher = () => {
+    if (draftItems.length === 0) {
+      alert("Veuillez ajouter au moins un produit pour fermer et enregistrer le bon.");
+      return;
+    }
+
+    // Default to ESPECE with pre-filled full versement
+    setPaymentMode('ESPECE');
+    setPaymentVersement(Number((computedMetrics.ttc).toFixed(2)));
+    setPaymentSource('CAISSE PRINCIPALE');
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handleConfirmPaymentAndSaveVoucher = () => {
+    const finalVersement = paymentMode === 'A_TERME' ? 0 : Number(paymentVersement) || 0;
+    
+    // Recalculate newBalance with final versement
+    const finalNewBalance = computedMetrics.oldBalance + (computedMetrics.ttc - finalVersement);
+
+    const savedVoucher: SalesVoucher = {
+      id: newSaleId,
+      date: newDate,
+      time: newTime,
+      client: newClientName,
+      type: newType,
+      itemsCount: draftItems.length,
+      colisCount: computedMetrics.colisCount,
+      amount: computedMetrics.rawAmount,
+      remise: remise,
+      totalHT: computedMetrics.totalHT,
+      tva: computedMetrics.tva,
+      timbre: computedMetrics.timbre,
+      ttc: computedMetrics.ttc,
+      versement: finalVersement,
+      oldBalance: computedMetrics.oldBalance,
+      newBalance: finalNewBalance,
+      observations: observations,
+      vendeur: vendeurName,
+      items: draftItems
+    };
+
+    // Calculate final products with decremented stocks
+    const finalizedProducts = localProducts.map(p => {
+      const itemInDraft = draftItems.find(i => i.code === p.code);
+      if (itemInDraft) {
+        const finalStock = Math.max(0, p.stock - itemInDraft.qty);
+        return {
+          ...p,
+          stock: finalStock,
+          stockColis: Math.ceil(finalStock / (itemInDraft.colisage || 12))
+        };
+      }
+      return p;
+    });
+
+    // Calculate and update client balance
+    const updatedClients = clients.map(c => {
+      if (c.name === savedVoucher.client) {
+        return {
+          ...c,
+          balance: savedVoucher.newBalance
+        };
+      }
+      return c;
+    });
+
+    if (editingVoucherId) {
+      onUpdateSale(editingVoucherId, savedVoucher);
+      alert(`Bon de Livraison N° ${savedVoucher.id} a été modifié avec succès !`);
+      setSelectedSaleId(savedVoucher.id);
+      setEditingVoucherId(null);
+      setMode('view');
+    } else {
+      onAddSale(savedVoucher);
+      alert(`Bon de Livraison N° ${savedVoucher.id} a été enregistré !`);
+      setSelectedSaleId(savedVoucher.id);
+      setEditingVoucherId(null);
+      setMode('view');
+    }
+
+    onProductsUpdate(finalizedProducts);
+    onClientsUpdate(updatedClients);
+    setIsPaymentDialogOpen(false);
+  };
+
+  const handleFermerLeBon = () => {
+    if (mode === 'create') {
+      if (draftItems.length === 0) {
+        if (editingVoucherId) {
+          // This is an edited voucher that has been cleared of all products. Delete it!
+          onDeleteSale(editingVoucherId);
+          setMode('view');
+          setEditingVoucherId(null);
+          // Reset selection in the current component view
+          const remainingSales = sales.filter(s => s.id !== editingVoucherId);
+          if (remainingSales.length > 0) {
+            setSelectedSaleId(remainingSales[remainingSales.length - 1].id);
+          } else {
+            setSelectedSaleId('');
+          }
+          setNewClientName('Anonyme');
+          alert("Le bon de livraison a été supprimé car tous ses produits ont été retirés.");
+        } else {
+          // Normal cancel create for a brand new empty bon
+          handleCancelCreate();
+        }
+      } else {
+        handleCloseAndSaveVoucher();
+      }
+    }
+  };
+
+  // Hotkeys Hook
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If we are editing inside some text inputs, don't trigger global hotkeys unless barcode input
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' && !(e.target as HTMLInputElement).readOnly && !isProductChooserOpen && !isPaymentDialogOpen) {
+        return;
+      }
+
+      if (isPaymentDialogOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setIsPaymentDialogOpen(false);
+        }
+        if (e.key === 'Enter' || e.key === 'F5') {
+          e.preventDefault();
+          handleConfirmPaymentAndSaveVoucher();
+        }
+        return;
+      }
+
+      if (e.key === 'F7') {
+        e.preventDefault();
+        setIsProductChooserOpen(true);
+      } else if (e.key === 'F1' && mode === 'view') {
+        e.preventDefault();
+        startCreateMode();
+      } else if (e.key === 'F5' && mode === 'create') {
+        e.preventDefault();
+        handleFermerLeBon();
+      } else if (e.key === 'F4' && mode === 'view') {
+        e.preventDefault();
+        handleEditVoucher();
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        handleFermerLeBon();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, draftItems, newSaleId, newDate, newTime, newClientName, newType, versement, remise, tvaRate, products, isPaymentDialogOpen, paymentVersement, paymentMode]);
+
+  const handleInsertProduct = () => {
+    if (mode !== 'create') {
+      alert("Ajout d'articles impossible en mode consultation. Veuillez cliquer d'abord sur 'Nouveau bon'.");
+      return;
+    }
+    setChooserSearchQuery('');
+    setSelectedProductInChooser(null);
+    setChooserQty(1);
+    setSelectedPriceType('prixVente1');
+    setCustomSellingPrice(0);
+    setIsProductChooserOpen(true);
+  };
+
+  const insertProductDirectly = (product: Product, quantitySelected: number = 1, priceSelected?: number) => {
+    if (mode !== 'create') {
+      alert("Ajout d'articles impossible en mode consultation. Veuillez cliquer d'abord sur 'Nouveau bon'.");
+      return;
+    }
+    const finalPrice = priceSelected !== undefined ? priceSelected : product.prixVente1;
+    
+    const newItem: VoucherItem = {
+      id: `draft-${Date.now()}-${Math.random()}`,
+      code: product.code,
+      designation: product.designation,
+      colisage: 12,
+      nbreColis: Math.floor(quantitySelected / 12),
+      pieces: quantitySelected % 12,
+      qty: quantitySelected,
+      price: finalPrice,
+      total: quantitySelected * finalPrice
+    };
+    const updated = [...draftItems, newItem];
+    setDraftItems(updated);
+    setSelectedItemIndex(updated.length - 1);
+    setViewingItemCode(product.code);
+  };
+
+  const handleDeleteItem = () => {
+    if (mode !== 'create') {
+      alert("Suppression des lignes impossible en mode consultation. Cliquez sur 'Nouveau Bon' pour saisir.");
+      return;
+    }
+    if (draftItems.length === 0) return;
+    const updated = draftItems.filter((_, idx) => idx !== selectedItemIndex);
+    setDraftItems(updated);
+    const nextIdx = Math.max(0, selectedItemIndex - 1);
+    setSelectedItemIndex(nextIdx);
+    if (updated[nextIdx]) {
+      setViewingItemCode(updated[nextIdx].code);
+    } else {
+      setViewingItemCode('');
+    }
+  };
+
+  const handleEditPriceOrQty = () => {
+    if (mode !== 'create') {
+      alert("Modification impossible en mode consultation. Créez un nouveau bon.");
+      return;
+    }
+    const currentItem = draftItems[selectedItemIndex];
+    if (!currentItem) return;
+
+    const newQtyStr = prompt(`Modifier la quantité pour "${currentItem.designation}":`, String(currentItem.qty));
+    if (newQtyStr === null) return;
+    const newQty = Number(newQtyStr);
+    if (isNaN(newQty) || newQty <= 0) return;
+
+    const newPriceStr = prompt(`Modifier le prix unitaire pour "${currentItem.designation}":`, String(currentItem.price));
+    if (newPriceStr === null) return;
+    const newPrice = Number(newPriceStr);
+    if (isNaN(newPrice) || newPrice < 0) return;
+
+    const updated = [...draftItems];
+    updated[selectedItemIndex] = {
+      ...currentItem,
+      qty: newQty,
+      price: newPrice,
+      total: newQty * newPrice,
+      nbreColis: Math.floor(newQty / 12),
+      pieces: newQty % 12
+    };
+    setDraftItems(updated);
+  };
+
+  const handleSaveVoucher = () => {
+    handleCloseAndSaveVoucher();
+  };
+
+  const handleCancelCreate = () => {
+    setMode('view');
+    setEditingVoucherId(null);
+    if (sales.length > 0) {
+      setSelectedSaleId(sales[sales.length - 1].id);
+    }
+  };
+
+  // Filtered products for search insertion
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) return localProducts;
+    return localProducts.filter(p => 
+      p.designation.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      p.code.includes(searchQuery)
+    );
+  }, [localProducts, searchQuery]);
+
+  // Find info about product currently selected/clicked inside invoice details
+  const viewingProduct = useMemo(() => {
+    return localProducts.find(p => p.code === viewingItemCode) || null;
+  }, [localProducts, viewingItemCode]);
+
+  // Navigation functions inside items of this invoice
+  const selectFirstItem = () => { if (currentItems.length > 0) { setSelectedItemIndex(0); setViewingItemCode(currentItems[0].code); } };
+  const selectPrevItem = () => { if (selectedItemIndex > 0) { setSelectedItemIndex(selectedItemIndex - 1); setViewingItemCode(currentItems[selectedItemIndex - 1].code); } };
+  const selectNextItem = () => { if (selectedItemIndex < currentItems.length - 1) { setSelectedItemIndex(selectedItemIndex + 1); setViewingItemCode(currentItems[selectedItemIndex + 1].code); } };
+  const selectLastItem = () => { if (currentItems.length > 0) { setSelectedItemIndex(currentItems.length - 1); setViewingItemCode(currentItems[currentItems.length - 1].code); } };
+
+  // Set values when navigating between saved sales
+  useEffect(() => {
+    if (selectedSale && mode === 'view') {
+      setVersement(selectedSale.versement || 0);
+      setRemise(selectedSale.remise || 0);
+      setObservations(selectedSale.observations || '');
+      setVendeurName(selectedSale.vendeur || '<Aucun>');
+    }
+  }, [selectedSale, mode]);
+
+  return (
+    <div className="flex-1 flex flex-col font-sans text-xs bg-slate-50 dark:bg-slate-900/40 text-slate-800 dark:text-slate-100 h-full overflow-hidden select-none outline-none">
+      
+      {/* 1. Header Toolbar Ribbon - Modernized with Material 3 styling */}
+      <div 
+        style={{ marginTop: '0px', marginBottom: '3px', width: '100%' }}
+        className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/50 dark:border-slate-800/85 gap-2 select-none shadow-xs h-[57px] shrink-0"
+      >
+        
+        {/* Media Buttons: Deb, Prec, Suiv, Fin grouped together */}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-slate-105 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/20 gap-1 dev-pager-group shadow-inner">
+            <button
+              onClick={handleFirst}
+              disabled={mode === 'create' || sales.length === 0}
+              className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
+              title="Premier Bon"
+            >
+              <span className="text-sm font-sans leading-none text-slate-800 dark:text-sky-400 font-extrabold">⏮</span>
+              <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-tight mt-0.5">Début</span>
+            </button>
+            <button
+              onClick={handlePrev}
+              disabled={mode === 'create' || activeSaleIndex <= 0}
+              className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
+              title="Bon Précédent"
+            >
+              <span className="text-xs font-sans leading-none text-slate-800 dark:text-sky-400 font-extrabold">◀</span>
+              <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-tight mt-0.5">Préc.</span>
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={mode === 'create' || activeSaleIndex >= sales.length - 1}
+              className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
+              title="Bon Suivant"
+            >
+              <span className="text-xs font-sans leading-none text-slate-800 dark:text-sky-400 font-extrabold">▶</span>
+              <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-tight mt-0.5">Suiv.</span>
+            </button>
+            <button
+              onClick={handleLast}
+              disabled={mode === 'create' || sales.length === 0}
+              className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
+              title="Dernier Bon"
+            >
+              <span className="text-sm font-sans leading-none text-slate-800 dark:text-sky-400 font-extrabold">⏭</span>
+              <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-tight mt-0.5">Fin</span>
+            </button>
+          </div>
+
+          <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1.5 shrink-0" />
+
+          {/* Action Buttons: F1, F2, F3... */}
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            <button
+              onClick={startCreateMode}
+              disabled={mode === 'create'}
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:to-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-transform duration-100 active:scale-95 disabled:opacity-40"
+            >
+              <span className="text-base">📄</span>
+              <div className="flex flex-col text-left">
+                <span style={{ fontSize: '12px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Nouveau bon</span>
+                <span className="text-[8px] font-bold text-emerald-100 tracking-wider mt-0.5">[ F1 ]</span>
+              </div>
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={handleFermerLeBon}
+              disabled={mode !== 'create'}
+              className={`px-3.5 h-10 flex items-center justify-center gap-2 rounded-xl shadow-sm transition-transform duration-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                mode === 'create'
+                  ? 'bg-gradient-to-br from-[#1e293b] to-slate-800 text-white cursor-pointer'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-950 cursor-default'
+              }`}
+            >
+              <span className="text-base">🔒</span>
+              <div className="flex flex-col text-left">
+                <span style={{ fontSize: '12px', lineHeight: '10px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Fermer le bon</span>
+                <span className="text-[8px] font-bold opacity-80 tracking-wider mt-0.5">[ F2 ]</span>
+              </div>
+            </button>
+
+            {mode === 'create' && (
+              <>
+                <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+                <button
+                  onClick={handleCancelCreate}
+                  className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl shadow-sm cursor-pointer transition-transform duration-100 active:scale-95"
+                >
+                  <span className="text-base">✕</span>
+                  <div className="flex flex-col text-left">
+                    <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Annuler</span>
+                    <span className="text-[8px] font-bold text-rose-100 tracking-wider mt-0.5">[ Échap ]</span>
+                  </div>
+                </button>
+              </>
+            )}
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => alert(`Impression thermique du Bon N° ${mode === 'create' ? newSaleId : (selectedSale?.id || '')} envoyée!`)}
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-950 shadow-xs cursor-pointer transition-transform duration-100 active:scale-95"
+            >
+              <span className="text-base">🖨️</span>
+              <div className="flex flex-col text-left">
+                <span style={{ fontSize: '12px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Imprimer</span>
+                <span className="text-[8px] font-bold text-slate-400 tracking-wider mt-0.5">[ F3 ]</span>
+              </div>
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={handleEditVoucher}
+              disabled={mode === 'create' || !selectedSale}
+              style={{ fontSize: '12px' }}
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-950 shadow-xs cursor-pointer disabled:opacity-40 transition-transform duration-100 active:scale-95"
+            >
+              <span className="text-base">✏️</span>
+              <div className="flex flex-col text-left">
+                <span style={{ fontSize: '12px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Modifier</span>
+                <span className="text-[8px] font-bold text-slate-400 tracking-wider mt-0.5">[ F4 ]</span>
+              </div>
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={() => {
+                const nextTva = tvaRate === 0 ? 19 : 0;
+                setTvaRate(nextTva);
+                alert(`TVA changé à ${nextTva}%`);
+              }}
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-950/60 text-slate-700 dark:text-slate-300 rounded-xl hover:opacity-90 shadow-xs cursor-pointer transition-transform duration-100 active:scale-95"
+            >
+              <span className="text-base">🔄</span>
+              <div className="flex flex-col text-left">
+                <span style={{ fontSize: '12px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] text-m3-primary dark:text-sky-400 uppercase tracking-wider leading-none">Mode de tarif</span>
+                <span className="text-[8px] font-bold text-green-600 dark:text-green-400 tracking-wider mt-0.5">TARIF {tvaRate === 19 ? 'TVA 19%' : '1'}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Client and Document Metadatas panel */}
+      <div 
+        style={{ height: '128px', width: '100%' }}
+        className="mx-0.5 mt-0.5 mb-2 p-3 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl flex flex-nowrap gap-3.5 items-center justify-start text-slate-900 dark:text-slate-100 shadow-xs relative overflow-x-auto no-scrollbar shrink-0"
+      >
+        
+        {/* Left container: Client + metadata on Row 1, and facturation auxiliary cards raised to Row 2 */}
+        <div className="flex flex-col gap-1.5 shrink-0 select-text justify-center">
+          {/* Row 1: Client Select/Avatar AND N° de bon, Date d'édition, Heure beside each other */}
+          <div className="flex items-center gap-2.5">
+            {/* Client avatar and select */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsClientModalOpen(true)}
+                title="Choisir ou créer un client (Fichier clients)"
+                className="w-10 h-10 shrink-0 bg-gradient-to-b from-sky-50 to-sky-100/50 dark:from-slate-900 dark:to-slate-950 border border-sky-100/30 dark:border-slate-800 rounded-xl shadow-sm flex items-center justify-center cursor-pointer hover:scale-110 hover:border-sky-300 dark:hover:border-slate-700 active:scale-95 transition-all duration-100 focus:outline-none"
+              >
+                {/* Custom SVG Avatar resembling the blue client image exactly */}
+                <svg className="w-7 h-7" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="48" fill="#e0f2fe" stroke="#38bdf8" strokeWidth="2"/>
+                  <path d="M25 40C25 25 35 15 50 15C65 15 75 25 75 40C75 43 70 45 68 40C62 30 38 30 32 40C30 45 25 43 25 40Z" fill="#eab308"/>
+                  <circle cx="50" cy="45" r="22" fill="#fed7aa"/>
+                  <path d="M35 30C42 22 58 22 65 30C60 25 40 25 35 30Z" fill="#ca8a04"/>
+                  <circle cx="43" cy="42" r="3" fill="#1e3a8a"/>
+                  <circle cx="57" cy="42" r="3" fill="#1e3a8a"/>
+                  <path d="M44 54C47 57 53 57 56 54" stroke="#1e3a8a" strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M22 85C22 72 32 63 45 61L50 67L55 61C68 63 78 72 78 85H22Z" fill="#1d4ed8"/>
+                  <path d="M41 62L50 71L59 62L50 60L41 62Z" fill="#ffffff"/>
+                  <path d="M47 68L50 82L53 68L50 66L47 68Z" fill="#ea580c"/>
+                </svg>
+              </button>
+              <div className="flex flex-col gap-0.5 w-[115px]">
+                <span className="font-extrabold text-[9px] text-blue-900 dark:text-sky-400/90 uppercase tracking-wide">Client</span>
+                {mode === 'create' ? (
+                  <select
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    className="h-7 px-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-sans font-extrabold text-blue-900 dark:text-sky-400 focus:outline-none w-full"
+                  >
+                    <option value="Anonyme">Anonyme (Client Anonyme)</option>
+                    {clients.filter(c => c.name.toLowerCase() !== 'anonyme').map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    value={selectedSale?.client || ''}
+                    className="h-7 px-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-sans font-extrabold text-[10px] text-slate-900 dark:text-slate-100 focus:outline-none w-full"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-7 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
+
+            {/* N° de bon, Date, Heure (now side by side next to Client group) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* N° de bon */}
+              <div className="flex flex-col gap-0.5 w-[75px]">
+                <span className="font-extrabold text-[8.5px] text-slate-400 dark:text-slate-400 leading-none uppercase tracking-wide">N° de bon</span>
+                <input
+                  type="text"
+                  readOnly
+                  value={mode === 'create' ? newSaleId : (selectedSale?.id || '')}
+                  style={{ fontSize: '12px', textDecorationLine: 'none', fontFamily: 'Arial' }}
+                  className="h-7 px-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-black text-center text-rose-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Date d'édition */}
+              <div className="flex flex-col gap-0.5 w-[85px]">
+                <span className="font-extrabold text-[8.5px] text-slate-400 dark:text-slate-400 leading-none uppercase tracking-wide">Date d'édition</span>
+                <input
+                  type="text"
+                  readOnly={mode === 'view'}
+                  value={mode === 'create' ? newDate : (selectedSale?.date || '')}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  style={{ fontSize: '12px', fontFamily: 'Arial' }}
+                  className="h-7 px-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-bold text-center text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
+              </div>
+
+              {/* Heure */}
+              <div className="flex flex-col gap-0.5 w-[70px]">
+                <span className="font-extrabold text-[8.5px] text-slate-400 dark:text-slate-400 leading-none uppercase tracking-wide">Heure</span>
+                <input
+                  type="text"
+                  readOnly={mode === 'view'}
+                  value={mode === 'create' ? newTime : (selectedSale?.time || '')}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  style={{ fontFamily: 'Arial', fontSize: '13px' }}
+                  className="h-7 px-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-bold text-center text-slate-800 dark:text-slate-200 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Facturation, Autres imp, Import/Exp raised to Row 2 side by side */}
+          <div className="flex flex-row gap-1.5 select-none font-sans font-bold shrink-0">
+            <div className="h-8 bg-slate-50 dark:bg-slate-900/60 px-2.5 border border-slate-200/50 dark:border-slate-800 rounded-xl flex gap-2 items-center text-slate-600 dark:text-slate-300 w-[145px]">
+              <span className="text-[11px]">📊</span>
+              <div className="flex flex-col leading-none text-left">
+                <span className="text-[8.5px] font-extrabold uppercase tracking-wide text-slate-700 dark:text-slate-300">Facturation</span>
+                <span className="text-[7.5px] text-slate-400 mt-0.5">Comptes actifs</span>
+              </div>
+            </div>
+            <div className="h-8 bg-slate-50 dark:bg-slate-900/60 px-2.5 border border-slate-200/50 dark:border-slate-800 rounded-xl flex gap-2 items-center text-slate-600 dark:text-slate-300 w-[145px]">
+              <span className="text-[11px]">🖨️</span>
+              <div className="flex flex-col leading-none text-left">
+                <span className="text-[8.5px] font-extrabold uppercase tracking-wide text-slate-700 dark:text-slate-300">Autres imp.</span>
+                <span className="text-[7.5px] text-slate-400 mt-0.5">BLs Multiples</span>
+              </div>
+            </div>
+            <div className="h-8 bg-slate-50 dark:bg-slate-900/60 px-2.5 border border-slate-200/50 dark:border-slate-800 rounded-xl flex gap-2 items-center text-slate-600 dark:text-slate-300 w-[145px]">
+              <span className="text-[11px]">🔌</span>
+              <div className="flex flex-col leading-none text-left">
+                <span className="text-[8.5px] font-extrabold uppercase tracking-wide text-slate-700 dark:text-slate-300">Import / Exp</span>
+                <span className="text-[7.5px] text-slate-400 mt-0.5">Sauvegardes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Central Balance / Cash Account summary card */}
+        <div className="w-[190px] bg-slate-50 dark:bg-slate-900 p-1.5 border border-slate-300/10 rounded-2xl flex flex-col gap-1 text-xs font-mono font-bold leading-tight shadow-xs select-all shrink-0">
+          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
+            <span style={{ fontFamily: 'Arial', fontSize: '11.5px' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Ancien solde:</span>
+            <span className="text-red-600 dark:text-red-400 font-extrabold text-xs">
+              {computedMetrics.oldBalance.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+            </span>
+          </div>
+          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
+            <span style={{ fontFamily: 'Arial', fontSize: '12.5px' }} className="text-[9.5px] text-m3-primary dark:text-sky-400 font-semibold font-sans">Montant bon:</span>
+            <span className="text-blue-900 dark:text-sky-300 font-extrabold text-xs">
+              {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+            </span>
+          </div>
+          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-rose-200 dark:border-rose-900/40 rounded-lg">
+            <span style={{ fontSize: '12.5px', fontFamily: 'Arial' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Versement:</span>
+            <input
+              type="number"
+              disabled={mode === 'view'}
+              value={mode === 'create' ? versement : (selectedSale?.versement || 0)}
+              onChange={(e) => setVersement(Number(e.target.value))}
+              className="w-20 text-right bg-transparent font-mono font-extrabold text-green-700 dark:text-green-400 outline-none text-xs"
+              style={{ direction: 'ltr' }}
+            />
+          </div>
+          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
+            <span style={{ fontSize: '12.5px', fontFamily: 'Arial', fontWeight: 'bold' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Nouveau solde:</span>
+            <span className="text-rose-600 dark:text-rose-400 font-extrabold text-xs">
+              {computedMetrics.newBalance.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Rightmost Commerciaux / Transaction box */}
+        <div className="w-[140px] shrink-0 flex flex-col gap-1.5">
+          <div className="flex flex-col gap-0.5">
+            {mode === 'create' ? (
+              <select
+                value={vendeurName}
+                onChange={(e) => setVendeurName(e.target.value)}
+                className="h-7 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none text-[10.5px] font-bold text-slate-800 dark:text-slate-200"
+              >
+                <option value="<Aucun>">&lt;Aucun&gt;</option>
+                <option value="HICHEM">HICHEM</option>
+                <option value="AGENCE ALGER">AGENCE ALGER</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                readOnly
+                value={selectedSale?.vendeur || vendeurName}
+                className="h-7 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-lg focus:outline-none font-bold text-[10.5px]"
+              />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] font-extrabold text-slate-500 dark:text-slate-400 leading-none uppercase tracking-wide">Transaction</span>
+            {mode === 'create' ? (
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as 'VENTE' | 'RETOUR')}
+                className="h-7 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-bold text-blue-900 dark:text-sky-400 focus:outline-none text-[10.5px]"
+              >
+                <option value="VENTE">VENTE</option>
+                <option value="RETOUR">RETOUR</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                readOnly
+                value={selectedSale?.type || 'VENTE'}
+                className="h-7 px-2 bg-blue-50 text-blue-950 text-center font-bold border border-blue-300 focus:outline-none text-[10.5px] rounded-lg"
+              />
+            )}
+          </div>
+
+          {/* TVA, 0-9 & A-Z side-by-side next to each other right under */}
+          <div className="flex items-center gap-1 mt-0.5 w-full">
+            <button 
+              onClick={() => alert("Impôt de timbre configuré")}
+              className="flex-1 h-6 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-md cursor-pointer text-[9px] font-black border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-center transition-all"
+              title="TVA%"
+            >
+              📊
+            </button>
+            <button 
+              onClick={() => alert("Filtre numérique actif")}
+              className="flex-1 h-6 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-md cursor-pointer text-[9px] font-black border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-center transition-all"
+              title="0-9"
+            >
+              0-9
+            </button>
+            <button 
+              onClick={() => alert("Tri alphabétique par désignation actif")}
+              className="flex-1 h-6 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-md cursor-pointer text-[9px] font-black border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-center transition-all"
+              title="A-Z"
+            >
+              A-Z
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Middle Code-Produit Input / Control Line - Modern Material 3 */}
+      <div 
+        className="mx-0.5 p-2 bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex items-center justify-start gap-3 select-none shrink-0 overflow-hidden"
+      >
+        {/* Search input wrapped in a tight flex layout */}
+        <div className="relative flex items-center shrink-0">
+          <span className="absolute left-2.5 text-slate-400">🔍</span>
+          <input
+            type="text"
+            placeholder="Saisir code barre ou désignation..."
+            value={soldItemsSearchQuery}
+            onChange={(e) => setSoldItemsSearchQuery(e.target.value)}
+            className="w-56 h-8.5 pl-8 pr-3 bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-xl font-sans text-xs focus:outline-none font-semibold focus:border-m3-primary dark:focus:border-sky-500"
+          />
+        </div>
+
+        {/* Group containing navigator AND action buttons together, so they stay positioned beside each other without moving on resize */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
+          {/* Table index navigator controls */}
+          <div 
+            className="flex items-center gap-1 h-8.5 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/10 shrink-0 flex-nowrap"
+          >
+            <button
+              onClick={selectFirstItem}
+              className="w-7 h-6.5 font-bold hover:bg-slate-100 dark:hover:bg-slate-900 text-xs text-slate-700 dark:text-slate-300 rounded-lg bg-white dark:bg-slate-950/20 cursor-pointer"
+              title="Premier de la grille"
+            >
+              ⏮
+            </button>
+            <button
+              onClick={selectPrevItem}
+              className="w-7 h-6.5 font-bold hover:bg-slate-100 dark:hover:bg-slate-900 text-xs text-slate-700 dark:text-slate-300 rounded-lg bg-white dark:bg-slate-950/20 cursor-pointer"
+              title="Précédent de la grille"
+            >
+              ◀
+            </button>
+            <button
+              onClick={selectNextItem}
+              className="w-7 h-6.5 font-bold hover:bg-slate-100 dark:hover:bg-slate-900 text-xs text-slate-700 dark:text-slate-300 rounded-lg bg-white dark:bg-slate-950/20 cursor-pointer"
+              title="Suivant de la grille"
+            >
+              ▶
+            </button>
+            <button
+              onClick={selectLastItem}
+              className="w-7 h-6.5 font-bold hover:bg-slate-100 dark:hover:bg-slate-900 text-xs text-slate-700 dark:text-slate-300 rounded-lg bg-white dark:bg-slate-950/20 cursor-pointer"
+              title="Dernier de la grille"
+            >
+              ⏭
+            </button>
+          </div>
+
+          <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1.5 shrink-0" />
+
+          {/* Action buttons with Material 3 styling (permanently grouped beside navigator) */}
+          <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+            <button
+              onClick={handleInsertProduct}
+              type="button"
+              className="h-8.5 px-3 bg-gradient-to-br from-sky-500 to-sky-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0 animate-pulse-once"
+            >
+              <span>➕</span> Insérer [F7]
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={handleEditPriceOrQty}
+              type="button"
+              className="h-8.5 px-3 bg-gradient-to-br from-amber-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0"
+            >
+              <span>✏️</span> Modifier [F8]
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={handleDeleteItem}
+              type="button"
+              className="h-8.5 px-3 bg-gradient-to-br from-rose-500 to-rose-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0"
+            >
+              <span>➖</span> Supprimer [Supp]
+            </button>
+
+            <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+
+            <button
+              onClick={() => {
+                setTempObs(observations);
+                setIsObsModalOpen(true);
+              }}
+              type="button"
+              title="Observations"
+              className={`h-8.5 w-8.5 flex items-center justify-center rounded-xl text-xs shadow-sm hover:scale-105 active:scale-95 transition-all duration-100 cursor-pointer border shrink-0 ${
+                observations 
+                  ? 'bg-emerald-500 text-white border-emerald-600 dark:bg-emerald-600 dark:border-emerald-700 font-bold' 
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
+              }`}
+            >
+              <span>✏️</span>
+            </button>
+
+            {/* Supprimer registry button to delete registered vouchers */}
+            {mode === 'view' && selectedSale && (
+              <>
+                <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
+                <button
+                  onClick={handleDeleteSelectedVoucher}
+                  type="button"
+                  title="Supprimer définitivement ce bon de vente de la liste historique"
+                  className="h-8.5 w-8.5 flex items-center justify-center rounded-xl text-xs shadow-sm hover:scale-105 active:scale-95 text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/40 dark:hover:bg-rose-950 cursor-pointer shrink-0 transition-transform duration-100"
+                >
+                  <span>🗑️</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Main grid list + right previews sidebar */}
+      <div className="grid grid-cols-12 gap-3.5 mx-0.5 min-h-[160px] flex-1 mt-1">
+        
+        {/* Main Products Grid Table */}
+        <div className="col-span-8 flex flex-col border border-slate-200/50 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-inner rounded-2xl overflow-hidden">
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-left font-sans text-xs border-collapse">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold select-none border-b border-slate-200/60 dark:border-slate-800/80 z-10">
+                <tr>
+                  <th className="w-10 px-3 py-2 text-center text-[10px] uppercase tracking-wider">N°</th>
+                  <th className="w-28 px-3 py-2 font-mono text-[10px] uppercase tracking-wider">Code</th>
+                  <th className="px-3 py-2 font-sans text-[10px] uppercase tracking-wider">Désignation</th>
+                  <th className="w-14 px-1 py-2 text-center text-[10px] uppercase tracking-wider">Colis</th>
+                  <th className="w-14 px-1 py-2 text-center text-[10px] uppercase tracking-wider">Colisage</th>
+                  <th className="w-14 px-1 py-2 text-center text-[10px] uppercase tracking-wider">Pièces</th>
+                  <th className="w-14 px-1 py-2 text-center text-[10px] uppercase tracking-wider">Qté</th>
+                  <th className="w-24 px-3 py-2 text-right text-[10px] uppercase tracking-wider">P. Unit</th>
+                  <th className="w-24 px-3 py-2 text-right text-[10px] uppercase tracking-wider">Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-16 text-slate-400 dark:text-slate-600 italic font-sans select-all">
+                      {soldItemsSearchQuery ? "Aucun article correspondant à votre recherche." : "Aucun article enregistré pour ce bon. Cliquez sur \"Nouveau Bon\" puis \"Insérer Produit\"."}
+                    </td>
+                  </tr>
+                ) : (
+                  displayedItems.map((item) => {
+                    const isSelected = selectedItemIndex === item.originalIndex;
+                    return (
+                      <tr
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedItemIndex(item.originalIndex);
+                          setViewingItemCode(item.code);
+                        }}
+                        className={`cursor-pointer border-b border-slate-100 dark:border-slate-800/40 transition-colors ${
+                          isSelected 
+                            ? 'bg-m3-primary/10 dark:bg-sky-500/10 text-m3-primary dark:text-sky-300 font-bold' 
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-900/40 even:bg-slate-50/20 dark:even:bg-slate-950/20'
+                        }`}
+                      >
+                        <td 
+                          style={item.originalIndex === 0 || item.originalIndex === 1 ? { fontSize: '14px' } : undefined}
+                          className="px-3 py-2 text-center select-none font-bold"
+                        >
+                          {item.originalIndex + 1}
+                        </td>
+                        <td 
+                          style={item.originalIndex === 0 || item.originalIndex === 1 ? { fontSize: '13px', fontFamily: 'Arial' } : undefined}
+                          className="px-3 py-2 font-mono text-[11px] truncate select-all"
+                        >
+                          {item.code}
+                        </td>
+                        <td 
+                          style={item.originalIndex === 0 || item.originalIndex === 1 ? { fontSize: '14px', fontFamily: 'Arial' } : undefined}
+                          className="px-3 py-2 font-sans truncate select-all"
+                        >
+                          {item.designation}
+                        </td>
+                        <td 
+                          style={item.originalIndex === 0 ? { fontSize: '13px' } : item.originalIndex === 1 ? { fontSize: '13px', fontFamily: 'Arial' } : undefined}
+                          className="px-1 py-1 sm:py-2 text-center font-mono select-all text-slate-300/10 dark:text-slate-800/10"
+                        >
+                          {/* Colis is always blank */}
+                        </td>
+                        <td 
+                          style={item.originalIndex === 0 || item.originalIndex === 1 ? { fontSize: '13px' } : undefined}
+                          className="px-1 py-1 sm:py-2 text-center font-mono text-slate-300/10 dark:text-slate-800/10 select-all"
+                        >
+                          {/* Colisage is always blank */}
+                        </td>
+                        <td className="px-1 py-2 text-center font-mono select-all">
+                          {item.pieces !== undefined ? item.pieces : item.qty}
+                        </td>
+                        <td className={`px-1 py-2 text-center font-mono font-bold select-all ${isSelected ? 'text-m3-primary dark:text-sky-400' : 'text-slate-900 dark:text-slate-200'}`}>
+                          {item.qty}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono select-all">
+                          {item.price.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono font-extrabold select-all">
+                          {item.total.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right pre-visual sidebar & ultimate bill fields */}
+        <div className="col-span-4 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col gap-2 justify-start">
+          
+          {/* Money recaps list matching screenshot exactly */}
+          <div className="flex flex-col gap-1.5 font-mono select-all text-xs">
+            <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
+              <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">Montant Brut</span>
+              <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-black text-slate-800 dark:text-slate-200">
+                {computedMetrics.rawAmount.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
+              <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">Remise (Dinars)</span>
+              <input
+                type="number"
+                disabled={mode === 'view'}
+                value={remise || ''}
+                onChange={(e) => setRemise(Math.max(0, Number(e.target.value)))}
+                style={{ fontSize: '11px', fontFamily: 'Arial' }}
+                className="w-24 text-right bg-slate-50 dark:bg-slate-900 h-6 border border-slate-200 dark:border-slate-800 rounded px-1.5 text-red-600 font-extrabold outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
+              <span style={{ fontFamily: 'Arial', fontSize: '10.5px' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">Total HT</span>
+              <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-extrabold text-slate-800 dark:text-slate-200">
+                {computedMetrics.totalHT.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
+              <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">TVA (19%)</span>
+              <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-bold text-blue-900 dark:text-sky-400">
+                {computedMetrics.tva.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
+              <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">TIMBRE FISCAL</span>
+              <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-bold text-amber-700 dark:text-amber-450">
+                {computedMetrics.timbre.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-0.5 py-1.5 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800 mt-0.5">
+              <div className="flex justify-between items-center w-full">
+                <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="font-black text-blue-900 dark:text-sky-300 uppercase tracking-wide text-[9.5px]">Net à Payer (TTC)</span>
+                <span style={{ fontSize: '12.5px', fontFamily: 'Arial' }} className="font-mono font-black text-blue-900 dark:text-sky-400 text-xs">
+                  {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                </span>
+              </div>
+              {showBenefit && (
+                <div className="flex justify-between items-center w-full pt-1 border-t border-dashed border-emerald-500/40 text-[9px] select-all">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Marge Bénéficiaire :</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-[10.5px]">
+                    +{totalBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </span>
+                </div>
+              )}
+              {!showBenefit && (
+                <div className="text-center text-[8px] text-slate-400 dark:text-slate-500 italic pt-0.5 border-t border-slate-200/40 dark:border-slate-800/40 select-none">
+                  Appuyez sur <kbd className="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded font-mono font-bold text-slate-600 dark:text-slate-300">Ctrl + B</kbd> pour afficher la marge.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Totals Sub-Window- Sticky to place without mt-auto pushing it with resize */}
+          <div className="bg-slate-950 dark:bg-black p-2.5 rounded-xl text-center flex flex-col gap-0.5 shadow-md border border-slate-800/50 mt-1 shrink-0">
+            <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="text-[9.5px] font-black text-amber-500 tracking-wider font-display uppercase">NET EN DINARS (TTC À PAYER)</span>
+            <span style={{ fontFamily: 'Arial' }} className="text-xl font-mono font-black text-emerald-400 dark:text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.4)]">
+              {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Observations Dialog Modal */}
+      {isObsModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[1001] p-4 text-xs">
+          <div className="w-[450px] max-w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header of the dialog */}
+            <div className="bg-[#1e293b] dark:bg-slate-950 px-5 py-4 flex items-center justify-between select-none">
+              <div className="flex items-center gap-2 text-white font-bold font-display text-sm">
+                <span>✏️</span> Notes sur le bon
+              </div>
+              <button
+                onClick={() => setIsObsModalOpen(false)}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-extrabold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Observations / Notes du bon</label>
+                <textarea
+                  value={tempObs}
+                  onChange={(e) => setTempObs(e.target.value)}
+                  placeholder="Saisissez vos observations sur le bon..."
+                  className="w-full h-28 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-sans text-xs focus:outline-none focus:border-m3-primary dark:focus:border-sky-500 resize-none text-slate-800 dark:text-slate-100"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsObsModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all cursor-pointer text-[11px]"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setObservations(tempObs);
+                    setIsObsModalOpen(false);
+                  }}
+                  className="px-5 py-2 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:opacity-95 text-white rounded-xl font-black shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-[11px]"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Chooser Dialog Modal */}
+      {isProductChooserOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[1000] p-4 text-xs">
+          <div className="w-[850px] max-w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header of the dialog */}
+            <div className="bg-m3-primary dark:bg-slate-950 px-5 py-4 flex items-center justify-between select-none">
+              <div className="flex items-center gap-2 text-white font-bold font-display text-sm">
+                <span>📦</span> Sélectionner un produit à vendre
+              </div>
+              <button
+                onClick={() => setIsProductChooserOpen(false)}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Inner Content */}
+            <div className="p-4 flex flex-col gap-3 select-none">
+              
+              {/* Search Bar inside Chooser */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-extrabold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filtrer les articles de la base:</span>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-slate-400">🔍</span>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Saisissez le nom d'un produit, la référence ou scannez son code-barres..."
+                    value={chooserSearchQuery}
+                    onChange={(e) => setChooserSearchQuery(e.target.value)}
+                    className="w-full h-9 pl-9 pr-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-sans text-xs focus:outline-none focus:border-m3-primary dark:focus:border-sky-500 animate-pulse-once"
+                  />
+                </div>
+              </div>
+
+              {/* Scrollable list of products */}
+              <div className="border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-slate-950 h-52 overflow-auto shadow-inner rounded-2xl">
+                <table className="w-full text-left font-sans text-xs border-collapse table-fixed">
+                  <thead className="bg-[#dfdfde]/40 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold sticky top-0 border-b border-slate-200/60 dark:border-slate-800/80 z-10 select-none">
+                    <tr>
+                      <th style={{ width: colWidths.code }} className="px-3 py-2 relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Code-barres</th>
+                      <th style={{ width: colWidths.designation }} className="px-3 py-2 relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Designation de l'article</th>
+                      <th style={{ width: colWidths.prixUnitaire }} className="px-3 py-2 text-right relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Prix Unitaire</th>
+                      <th style={{ width: colWidths.prixAchat }} className="px-3 py-2 text-right relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Prix d'Achat</th>
+                      <th style={{ width: colWidths.prixRevient }} className="px-3 py-2 text-right relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Prix de Revient</th>
+                      <th style={{ width: colWidths.stock }} className="px-3 py-2 text-center relative select-none truncate font-display text-[9.5px] uppercase tracking-wider">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.filter(p => {
+                      if (!chooserSearchQuery.trim()) return true;
+                      const s = chooserSearchQuery.toLowerCase();
+                      return p.designation.toLowerCase().includes(s) || p.code.includes(s);
+                    }).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-12 text-slate-400 italic">
+                          Aucun produit trouvé dans votre base.
+                        </td>
+                      </tr>
+                    ) : (
+                      products.filter(p => {
+                        if (!chooserSearchQuery.trim()) return true;
+                        const s = chooserSearchQuery.toLowerCase();
+                        return p.designation.toLowerCase().includes(s) || p.code.includes(s);
+                      }).map((p) => {
+                        const isChosenTmp = selectedProductInChooser?.code === p.code;
+                        return (
+                          <tr
+                            key={p.code}
+                            onClick={() => {
+                              setSelectedProductInChooser(p);
+                              setChooserQty(1);
+                              setSelectedPriceType('prixVente1');
+                              setCustomSellingPrice(p.prixVente1);
+                              setIsConfigPopupOpen(true);
+                            }}
+                            className={`cursor-pointer border-b border-slate-100 dark:border-slate-800/40 h-8.5 transition-colors ${
+                              isChosenTmp 
+                                ? 'bg-m3-primary/15 dark:bg-sky-500/15 text-m3-primary dark:text-sky-300 font-bold' 
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <td style={{ width: colWidths.code, maxWidth: colWidths.code }} className="px-3 py-1.5 font-mono text-[11px] truncate">
+                              {p.code}
+                            </td>
+                            <td style={{ width: colWidths.designation, maxWidth: colWidths.designation }} className="px-3 py-1.5 font-sans truncate">
+                              {p.designation}
+                            </td>
+                            <td style={{ width: colWidths.prixUnitaire, maxWidth: colWidths.prixUnitaire }} className="px-3 py-1.5 text-right font-mono font-bold truncate">
+                              {p.prixVente1.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                            </td>
+                            <td style={{ width: colWidths.prixAchat, maxWidth: colWidths.prixAchat }} className="px-3 py-1.5 text-right font-mono text-slate-400 dark:text-slate-500 truncate">
+                              {(p.prixAchat || p.prixDeRevient || 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                            </td>
+                            <td style={{ width: colWidths.prixRevient, maxWidth: colWidths.prixRevient }} className="px-3 py-1.5 text-right font-mono text-slate-400 dark:text-slate-500 truncate">
+                              {(p.prixDeRevient || 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                            </td>
+                            <td style={{ width: colWidths.stock, maxWidth: colWidths.stock }} className="px-3 py-1.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                              {p.stock}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+
+            {/* Footer actions of popup */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 select-none">
+              <button
+                type="button"
+                onClick={() => setIsProductChooserOpen(false)}
+                className="px-6 h-9 text-xs font-black bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 border border-slate-300/30 rounded-full transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 4. Payment Mode Dialogue (Mode de Règlement / Fermeture de Bon) */}
+      {isPaymentDialogOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[1000] p-4 text-xs font-sans text-slate-950 select-none">
+          <div className="w-[520px] max-w-full bg-white dark:bg-slate-900 border border-slate-200/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Title Bar */}
+            <div className="bg-m3-primary dark:bg-slate-950 px-5 py-4 flex items-center justify-between select-none">
+              <span className="text-white font-bold font-display text-sm flex items-center gap-2">
+                💰 Saisie du Règlement & Fermeture
+              </span>
+              <button 
+                onClick={() => setIsPaymentDialogOpen(false)}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center font-bold hover:bg-white/20 transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Dropdown Select Mode */}
+            <div className="p-4 px-5 bg-slate-50 dark:bg-slate-950/40 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800">
+              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wide">Mode de règlement:</span>
+              <select
+                value={paymentMode}
+                onChange={(e) => {
+                  const modeVal = e.target.value as 'ESPECE' | 'A_TERME';
+                  setPaymentMode(modeVal);
+                  if (modeVal === 'A_TERME') {
+                    setPaymentVersement(0);
+                  } else {
+                    setPaymentVersement(Number((computedMetrics.ttc).toFixed(2)));
+                  }
+                }}
+                className="flex-1 max-w-[240px] h-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold px-3 outline-none text-xs text-m3-primary dark:text-sky-400"
+              >
+                <option value="ESPECE">ESPÈCE / COMPTANT</option>
+                <option value="A_TERME">A TERME (CRÉDIT COMPTE)</option>
+              </select>
+            </div>
+
+            {/* Main Fields block */}
+            <div className="p-5 flex flex-col md:flex-row gap-4 flex-1">
+              
+              {/* Left Column (Balances Calculations) */}
+              <div className="flex-1 flex flex-col gap-2.5 p-4 bg-slate-50/70 dark:bg-slate-950/30 border border-slate-300/10 rounded-2xl shadow-xs">
+                
+                {/* Previous client balance */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Ancien Solde:</span>
+                  <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-slate-700 dark:text-slate-300 rounded-lg min-w-[120px] text-right">
+                    {(computedMetrics.oldBalance).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </div>
+                </div>
+
+                {/* Amount of current voucher */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-m3-primary dark:text-sky-400 text-[10px] uppercase tracking-wide">Net à Payer:</span>
+                  <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-black text-xs text-m3-primary dark:text-sky-400 rounded-lg min-w-[120px] text-right">
+                    {(computedMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </div>
+                </div>
+
+                {/* Total balance accumulated */}
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                  <span className="font-bold text-indigo-900 dark:text-indigo-400 text-[10px] uppercase tracking-wide">Amortissement total:</span>
+                  <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-indigo-950 dark:text-indigo-300 rounded-lg min-w-[120px] text-right">
+                    {(computedMetrics.oldBalance + computedMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </div>
+                </div>
+
+                {/* Input for versement */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-rose-500 text-[10px] uppercase tracking-wide">Versement direct:</span>
+                  <input
+                    type="number"
+                    value={paymentVersement || ''}
+                    onChange={(e) => setPaymentVersement(Number(e.target.value) || 0)}
+                    disabled={paymentMode === 'A_TERME'}
+                    className={`w-[120px] h-8 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2.5 text-right font-mono font-black text-rose-600 dark:text-rose-400 text-xs outline-none ${
+                      paymentMode === 'A_TERME' ? 'opacity-40 cursor-not-allowed' : 'focus:border-rose-500'
+                    }`}
+                    autoFocus={paymentMode !== 'A_TERME'}
+                    onFocus={(e) => e.target.select()}
+                  />
+                </div>
+
+                {/* Calculated new rest balance */}
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase tracking-wide">Nouveau Solde Tiers:</span>
+                  <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-950 font-mono font-black text-xs text-rose-600 dark:text-rose-400 rounded-lg min-w-[120px] text-right">
+                    {Math.max(0, (computedMetrics.oldBalance + computedMetrics.ttc) - paymentVersement).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column (Sources and description) */}
+              <div className="w-full md:w-44 flex flex-col gap-2.5 font-sans">
+                <span className="font-bold text-slate-500 dark:text-slate-400 text-[9.5px] uppercase tracking-wide block border-b border-slate-100 dark:border-slate-800 pb-1">
+                  Trésorerie d'affectation
+                </span>
+                <select
+                  value={paymentSource}
+                  onChange={(e) => setPaymentSource(e.target.value)}
+                  className="w-full h-8.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold px-2 px-3 outline-none text-xs text-slate-800 dark:text-slate-200"
+                >
+                  <option value="CAISSE PRINCIPALE">CAISSE PRINCIPALE</option>
+                  <option value="COFFRE N°1">COFFRE N°1</option>
+                  <option value="COFFRE N°2">COFFRE N°2</option>
+                </select>
+                
+                <div className="mt-auto bg-slate-100 dark:bg-slate-950/60 p-3.5 rounded-xl text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed border border-slate-200/10">
+                  Veuillez spécifier le montant effectivement perçu. Le reste sera imputé au registre crédit de la fiche tierce.
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Actions */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 px-5 flex justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800 select-none">
+              <button
+                type="button"
+                onClick={() => setIsPaymentDialogOpen(false)}
+                className="px-5 h-9 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                ✕ Fermer
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmPaymentAndSaveVoucher}
+                className="px-6 h-9 text-xs font-black bg-m3-primary text-white rounded-full shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                ✓ Enregistrer Bon (F5)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Custom delete confirmation modal */}
+      {isDeleteConfirmOpen && selectedSale && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 select-none animate-in fade-in zoom-in duration-100">
+          <div className="bg-white dark:bg-slate-900 w-[450px] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+            {/* Modal Title bar */}
+            <div className="bg-gradient-to-r from-rose-500/10 to-rose-600/15 p-4 pb-3 flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <h3 className="font-sans font-black text-xs text-rose-800 dark:text-rose-400 uppercase tracking-wider">
+                  Confirmation de suppression
+                </h3>
+                <p className="text-[10px] text-slate-500 font-medium">Cette action est définitive et irréversible</p>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 flex flex-col gap-3 font-sans text-xs text-slate-705 dark:text-slate-300">
+              <p className="leading-relaxed">
+                Voulez-vous vraiment supprimer le <strong className="text-blue-900 dark:text-sky-450">Bon de Vente N° {selectedSale.id}</strong> définitivement ?
+              </p>
+              
+              <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-250/20 p-3 rounded-2xl flex flex-col gap-1 text-[11px] leading-relaxed select-text font-mono text-rose-700 dark:text-rose-400">
+                <div className="flex justify-between">
+                  <span>Client :</span>
+                  <span className="font-bold">{selectedSale.client}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Date / Heure :</span>
+                  <span>{selectedSale.date} à {selectedSale.time}</span>
+                </div>
+                <div className="flex justify-between border-t border-rose-200/30 pt-1 mt-1 font-bold">
+                  <span>Montant TTC :</span>
+                  <span>{selectedSale.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
+                💡 Les stocks correspondants seront automatiquement re-crédités dans la base de données, et le solde du client sera ré-ajusté de manière transparente.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 flex justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="px-5 h-9 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeleteVoucher}
+                className="px-6 h-9 text-xs font-black bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer animate-in zoom-in"
+              >
+                🗑️ Oui, Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Client Selector & Creation Modal */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[10005] p-4 select-none">
+          <div className="w-[740px] max-w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header of the dialog */}
+            <div className="bg-gradient-to-r from-sky-800 to-sky-900 dark:from-slate-950 dark:to-slate-900 px-5 py-4 flex items-center justify-between select-none">
+              <div className="flex items-center gap-2 text-white font-bold font-display text-sm">
+                <span>👥</span> Fichier Clients & Sélection Directe
+              </div>
+              <button
+                onClick={() => setIsClientModalOpen(false)}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Main content grid */}
+            <div className="p-5 flex flex-col md:flex-row gap-5 overflow-hidden max-h-[70vh]">
+              
+              {/* LEFT COLUMN: Select Client */}
+              <div className="flex-1 flex flex-col gap-3 min-w-[320px]">
+                <div className="flex flex-col gap-1">
+                  <h4 className="font-extrabold text-[10px] text-sky-800 dark:text-sky-400 uppercase tracking-wide">
+                    Sélectionner un Client Existant
+                  </h4>
+                  <div className="relative select-text">
+                    <input
+                      type="text"
+                      placeholder="Rechercher par nom ou code..."
+                      value={clientSearchQuery}
+                      onChange={(e) => setClientSearchQuery(e.target.value)}
+                      className="w-full h-8 pl-8 pr-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:border-sky-500 font-sans font-bold"
+                    />
+                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                  </div>
+                </div>
+
+                {/* Clients list */}
+                <div className="flex-1 overflow-y-auto border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-950/40 divide-y divide-slate-100 dark:divide-slate-850 max-h-[300px] select-text">
+                  {/* Default Anonyme client item */}
+                  {('Anonyme'.toLowerCase().includes(clientSearchQuery.toLowerCase()) || 'Client Anonyme'.toLowerCase().includes(clientSearchQuery.toLowerCase())) && (
+                    <div
+                      onClick={() => handleSelectClient('Anonyme')}
+                      className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
+                        newClientName === 'Anonyme'
+                          ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-900 dark:text-sky-400 font-extrabold border-l-4 border-sky-500'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-950 flex items-center justify-center text-xs">👤</div>
+                        <div>
+                          <div className="font-bold">Anonyme</div>
+                          <div className="text-[9px] text-slate-400 font-mono">Client de comptoir</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-500 font-mono">0 DA</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filtered Clients list */}
+                  {clients
+                    .filter(c => c.name.toLowerCase() !== 'anonyme')
+                    .filter(c => 
+                      c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                      c.code.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                    )
+                    .map(c => (
+                      <div
+                        key={c.id}
+                        onClick={() => handleSelectClient(c.name)}
+                        className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
+                          newClientName === c.name
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-400 font-extrabold border-l-4 border-emerald-500'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-full bg-slate-150 dark:bg-slate-800 flex items-center justify-center text-xs">👤</div>
+                          <div>
+                            <div className="font-bold">{c.name}</div>
+                            <div className="text-[9px] text-slate-400 font-mono">{c.code} {c.contact ? `• ${c.contact}` : ''}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-[10px] font-bold font-mono ${c.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {c.balance.toLocaleString('fr-FR')} DA
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Empty state */}
+                  {clients.filter(c => c.name.toLowerCase() !== 'anonyme').filter(c => 
+                    c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                    c.code.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                  ).length === 0 && !'Anonyme'.toLowerCase().includes(clientSearchQuery.toLowerCase()) && (
+                    <div className="p-8 text-center text-slate-400">
+                      Aucun client trouvé pour "{clientSearchQuery}"
+                    </div>
+                  )}
+                </div>
+
+                {mode !== 'create' && (
+                  <div className="p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 rounded-xl text-[10px] text-amber-800 dark:text-amber-400 font-medium leading-relaxed">
+                    ⚠️ Vous visualisez actuellement un bon validé. Pour changer le client, veuillez cliquer sur <strong>"Nouveau bon"</strong> ou <strong>"Modifier le bon"</strong>.
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN: Create Client */}
+              <div className="w-full md:w-[260px] flex flex-col gap-3.5 border-t md:border-t-0 md:border-l border-slate-150 dark:border-slate-800 pt-4 md:pt-0 md:pl-5 select-text">
+                <h4 className="font-extrabold text-[10px] text-sky-800 dark:text-sky-400 uppercase tracking-wide">
+                  Ajouter un Nouveau Client
+                </h4>
+
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Nom du Client *</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Ets Ahmed & Fils"
+                      value={clientFormName}
+                      onChange={(e) => setClientFormName(e.target.value)}
+                      className="w-full h-8 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:border-sky-500 font-bold"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Téléphone</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 0550 12 34 56"
+                      value={clientFormPhone}
+                      onChange={(e) => setClientFormPhone(e.target.value)}
+                      className="w-full h-8 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Adresse</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Alger Centre"
+                      value={clientFormAddress}
+                      onChange={(e) => setClientFormAddress(e.target.value)}
+                      className="w-full h-8 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Solde de départ (DA)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={clientFormBalance}
+                      onChange={(e) => setClientFormBalance(e.target.value)}
+                      className="w-full h-8 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:border-sky-500 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCreateClient}
+                  className="w-full h-9 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-[11px] rounded-lg shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                >
+                  <span>➕</span>
+                  {mode === 'create' ? 'Créer & Associer' : 'Créer Client'}
+                </button>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsClientModalOpen(false)}
+                className="px-5 h-8 text-[11px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-850 transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Product Configuration Pop-up Modal */}
+      {isConfigPopupOpen && selectedProductInChooser && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[10010] p-4 select-none animate-in fade-in duration-150">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (selectedProductInChooser) {
+                insertProductDirectly(selectedProductInChooser, chooserQty, customSellingPrice);
+                setIsConfigPopupOpen(false);
+                setIsProductChooserOpen(false); // Also close the main chooser after successfully adding
+              }
+            }}
+            className="w-[500px] max-w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-teal-700 to-teal-850 dark:from-slate-950 dark:to-slate-900 px-5 py-4 flex items-center justify-between">
+              <div className="flex flex-col text-white font-sans">
+                <span className="font-extrabold text-sm flex items-center gap-1.5">
+                  ⚙️ Configuration d'Ajout d'Article
+                </span>
+                <span className="text-[10px] opacity-80 font-mono mt-0.5">
+                  Ref: {selectedProductInChooser.code}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfigPopupOpen(false)}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 flex flex-col gap-4 select-text">
+              {/* Product Info Banner */}
+              <div className="bg-teal-50/40 dark:bg-teal-950/10 border border-teal-100/30 rounded-2xl p-3 flex flex-col">
+                <span className="text-[9px] font-black uppercase text-teal-600 dark:text-teal-450 tracking-wider">Désignation de l'article</span>
+                <span className="text-sm font-black text-slate-900 dark:text-slate-100 mt-0.5">{selectedProductInChooser.designation}</span>
+              </div>
+
+              {/* Grid for Stock & Quantity */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Stock Actuel (read-only) */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wide">📦 Stock Actuel</span>
+                  <div className="h-9.5 px-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-xl flex items-center font-mono font-bold text-slate-700 dark:text-slate-300 text-xs">
+                    {selectedProductInChooser.stock} unités
+                  </div>
+                </div>
+
+                {/* Quantité à vendre (editable) */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wide">🔢 Quantité à vendre</span>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={chooserQty}
+                    onChange={(e) => setChooserQty(Math.max(1, Number(e.target.value)))}
+                    className="h-9.5 px-3 font-mono font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 w-full focus:outline-none focus:border-teal-500 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Predefined Prices Buttons */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wide">🏷️ Choix du Tarif de Vente (PV)</span>
+                <div className="flex gap-2 h-10 select-none">
+                  {[
+                    { key: 'prixVente1', label: 'PV1 (Détail)' },
+                    { key: 'prixVente2', label: 'PV2 (Gros)' },
+                    { key: 'prixVente3', label: 'PV3 (Super Gros)' }
+                  ].map((item) => {
+                    const priceVal = Number(selectedProductInChooser[item.key as keyof Product]) || 0;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPriceType(item.key as any);
+                          setCustomSellingPrice(priceVal);
+                        }}
+                        className={`flex-1 text-[10px] font-sans font-extrabold border rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          selectedPriceType === item.key
+                            ? 'bg-teal-600 border-teal-600 text-white shadow-sm scale-102 font-black'
+                            : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850'
+                        }`}
+                      >
+                        <span className="text-[8px] opacity-75">{item.label}</span>
+                        <span className="font-mono mt-0.5">{priceVal.toLocaleString('fr-FR')} DA</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Grid for Buy Price & Final Sell Price */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Prix d'Achat (not editable) */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wide">📉 Prix d'Achat</span>
+                  <div className="h-9.5 px-3 bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 rounded-xl flex items-center font-mono font-bold text-slate-500 dark:text-slate-500 text-xs select-none">
+                    {(selectedProductInChooser.prixAchat || selectedProductInChooser.prixDeRevient || 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  </div>
+                </div>
+
+                {/* Prix de Vente Final (editable) */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-wide">📈 Prix de Vente Final</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    value={customSellingPrice}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setCustomSellingPrice(val);
+                      if (val !== selectedProductInChooser.prixVente1 && 
+                          val !== selectedProductInChooser.prixVente2 && 
+                          val !== selectedProductInChooser.prixVente3) {
+                        setSelectedPriceType('' as any);
+                      }
+                    }}
+                    className="h-9.5 px-3 font-mono font-black rounded-xl border border-rose-350 focus:border-rose-500 bg-rose-50/20 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 w-full focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Benefit Box */}
+              {(() => {
+                const purchasePrice = selectedProductInChooser.prixAchat || selectedProductInChooser.prixDeRevient || 0;
+                const unitBenefit = customSellingPrice - purchasePrice;
+                const totalBenefit = unitBenefit * chooserQty;
+                const isLoss = unitBenefit < 0;
+
+                return (
+                  <div className={`border rounded-2xl p-3 flex flex-col justify-between transition-colors duration-150 ${
+                    isLoss 
+                      ? 'bg-rose-50/50 dark:bg-rose-950/10 border-rose-150 dark:border-rose-900/30' 
+                      : 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-150 dark:border-emerald-900/30'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${isLoss ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {isLoss ? '⚠️ Perte Estimée' : '💰 Bénéfice Estimé'}
+                      </span>
+                      <span className="text-[8px] font-sans font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-slate-500">
+                        {chooserQty} unité(s)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mt-2 font-mono">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Par Unité</span>
+                        <span className={`text-xs font-black ${isLoss ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {unitBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                        </span>
+                      </div>
+                      <div className="flex flex-col text-right">
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Total</span>
+                        <span className={`text-sm font-black ${isLoss ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {totalBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsConfigPopupOpen(false)}
+                className="px-5 h-9 text-xs font-bold bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-6 h-9 text-xs font-black bg-teal-600 hover:bg-teal-500 text-white rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>➕</span> Insérer au Bon
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+    </div>
+  );
+}

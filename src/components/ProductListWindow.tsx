@@ -410,9 +410,9 @@ export default function ProductListWindow({
               const reqSelected = index === selectedIndex;
               
               // Map pricing properties dynamically
-              const displayPrixAchat = p.prixAchat !== undefined ? p.prixAchat : p.prixVente1;
-              const displayPrixDeRevient = p.prixDeRevient !== undefined ? p.prixDeRevient : p.prixVente2;
-              const displayPrixVente = p.prixVente3 !== undefined ? p.prixVente3 : p.prixVente1;
+              const displayPrixAchat = (p.prixAchat ?? p.prixVente1) ?? 0;
+              const displayPrixDeRevient = (p.prixDeRevient ?? p.prixVente2) ?? 0;
+              const displayPrixVente = (p.prixVente3 ?? p.prixVente1) ?? 0;
 
               return (
                 <tr

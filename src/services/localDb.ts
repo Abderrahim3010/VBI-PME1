@@ -82,7 +82,7 @@ export async function saveData(key: PersistentKey | string, value: string): Prom
   try {
     localStorage.setItem(key, value);
   } catch (error) {
-    console.error('[localDb] localStorage mirror save failed:', key, error);
+    console.error('[localDb] localStorage mirror save failed:', key, error instanceof Error ? error.message : String(error));
   }
 
   if (!hasBridge()) return;
@@ -90,12 +90,42 @@ export async function saveData(key: PersistentKey | string, value: string): Prom
   try {
     await window.vbiDb!.saveData(key, value);
   } catch (error) {
-    console.error('[localDb] SQLite save failed, localStorage fallback kept:', key, error);
+    console.error('[localDb] SQLite save failed, localStorage fallback kept:', key, error instanceof Error ? error.message : String(error));
+  }
+}
+
+export function safeStringify(obj: any, indent?: number): string {
+  try {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (value && typeof value === 'object') {
+        if (typeof window !== 'undefined' && value === window) {
+          return '[Window]';
+        }
+        if (value.constructor && value.constructor.name === 'Window') {
+          return '[Window]';
+        }
+        if (value instanceof Event || (value.constructor && value.constructor.name.endsWith('Event'))) {
+          return '[Event]';
+        }
+        if (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) {
+          return '[HTMLElement]';
+        }
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
+      return value;
+    }, indent);
+  } catch (err) {
+    console.error('[localDb] safeStringify failed, falling back to primitive/error representation', err);
+    return '"[Serialization Error]"';
   }
 }
 
 export async function saveJson(key: PersistentKey | string, value: unknown): Promise<void> {
-  await saveData(key, JSON.stringify(value));
+  await saveData(key, safeStringify(value));
 }
 
 export async function getData(key: PersistentKey | string): Promise<string | null> {
@@ -109,7 +139,7 @@ export async function getData(key: PersistentKey | string): Promise<string | nul
       }
       return value;
     } catch (error) {
-      console.error('[localDb] SQLite read failed, using localStorage fallback:', key, error);
+      console.error('[localDb] SQLite read failed, using localStorage fallback:', key, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -127,7 +157,7 @@ export async function loadPersistentData(keys: readonly string[] = PERSISTENT_ST
       });
       return data;
     } catch (error) {
-      console.error('[localDb] SQLite bulk load failed, using localStorage fallback:', error);
+      console.error('[localDb] SQLite bulk load failed, using localStorage fallback:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -155,7 +185,7 @@ export async function migrateLocalStorageToSqlite(keys: readonly string[] = PERS
 
     await window.vbiDb!.setMeta(MIGRATION_META_KEY, 'true');
   } catch (error) {
-    console.error('[localDb] localStorage to SQLite migration failed; localStorage left untouched:', error);
+    console.error('[localDb] localStorage to SQLite migration failed; localStorage left untouched:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -166,7 +196,7 @@ export async function getDatabaseInfo(): Promise<DbOperationResult> {
   try {
     return await window.vbiDb!.getDatabaseInfo();
   } catch (error) {
-    console.error('[localDb] SQLite database info failed:', error);
+    console.error('[localDb] SQLite database info failed:', error instanceof Error ? error.message : String(error));
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -178,7 +208,7 @@ export async function exportBackup(): Promise<DbOperationResult> {
   try {
     return await window.vbiDb!.exportBackup();
   } catch (error) {
-    console.error('[localDb] SQLite backup export failed:', error);
+    console.error('[localDb] SQLite backup export failed:', error instanceof Error ? error.message : String(error));
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -190,7 +220,7 @@ export async function restoreBackup(): Promise<DbOperationResult> {
   try {
     return await window.vbiDb!.restoreBackup();
   } catch (error) {
-    console.error('[localDb] SQLite restore failed:', error);
+    console.error('[localDb] SQLite restore failed:', error instanceof Error ? error.message : String(error));
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

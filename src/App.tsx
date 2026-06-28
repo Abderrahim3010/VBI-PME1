@@ -39,7 +39,8 @@ import {
   loadPersistentData,
   migrateLocalStorageToSqlite,
   saveData,
-  saveJson
+  saveJson,
+  safeStringify
 } from './services/localDb';
 
 export default function App() {
@@ -122,7 +123,7 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      sessionStorage.setItem('compos_current_user', JSON.stringify(currentUser));
+      sessionStorage.setItem('compos_current_user', safeStringify(currentUser));
     } else {
       sessionStorage.removeItem('compos_current_user');
     }
@@ -274,7 +275,7 @@ export default function App() {
       try {
         return JSON.parse(data[key]) as T;
       } catch (error) {
-        console.error(`[localDb] Invalid JSON for ${key}; keeping fallback state.`, error);
+        console.error(`[localDb] Invalid JSON for ${key}; keeping fallback state.`, error instanceof Error ? error.message : String(error));
         return fallback;
       }
     }

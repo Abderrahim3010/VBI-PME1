@@ -763,7 +763,7 @@ export default function SituationFournisseursWindow({
                             : 'text-slate-400'
                       }`}>
                         {item.achats > 0 
-                          ? item.achats.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          ? (item.achats ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : '0,00'
                         }
                       </td>
@@ -777,7 +777,7 @@ export default function SituationFournisseursWindow({
                             : 'text-slate-400'
                       }`}>
                         {item.versements > 0 
-                          ? item.versements.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          ? (item.versements ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : '0,00'
                         }
                       </td>
@@ -790,7 +790,7 @@ export default function SituationFournisseursWindow({
                             ? 'text-emerald-600 dark:text-emerald-500 font-normal' 
                             : 'text-red-700 dark:text-red-400'
                       }`}>
-                        {item.solde.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(item.solde ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
 
                       {/* Remarks */}
@@ -838,7 +838,7 @@ export default function SituationFournisseursWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Solde initial:</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[90px] text-right text-slate-700 dark:text-slate-200 shadow-inner">
-                {ledgerMetrics.soldeInitial.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.soldeInitial ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -846,7 +846,7 @@ export default function SituationFournisseursWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Total des Achats:</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[110px] text-right text-orange-700 dark:text-orange-400 shadow-inner">
-                {ledgerMetrics.totalAchats.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.totalAchats ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -854,7 +854,7 @@ export default function SituationFournisseursWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Total des Versements:</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[110px] text-right text-emerald-700 dark:text-emerald-400 shadow-inner">
-                {ledgerMetrics.totalVersements.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.totalVersements ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -862,7 +862,7 @@ export default function SituationFournisseursWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-700 dark:text-rose-400 bg-sky-50 dark:bg-slate-850 px-1 py-0.5 rounded">Solde:</span>
               <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-900 rounded px-3 py-1 text-xs font-mono font-black min-w-[110px] text-right text-red-700 dark:text-red-400 shadow-sm leading-none flex items-center justify-end">
-                {ledgerMetrics.soldeFinal.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.soldeFinal ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           </div>
@@ -1031,7 +1031,7 @@ export default function SituationFournisseursWindow({
                     <div>
                       <span className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 mb-0.5">Ancien Solde</span>
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 py-1 px-2.5 font-mono font-black text-right text-sm text-slate-800 dark:text-slate-100 rounded leading-tight shadow-sm">
-                        {modalAncienSolde.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(modalAncienSolde ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 
@@ -1055,7 +1055,7 @@ export default function SituationFournisseursWindow({
                     <div>
                       <span className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 mb-0.5">Nouveau Solde</span>
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 py-1 px-2.5 font-mono font-black text-right text-sm text-slate-850 dark:text-slate-100 rounded leading-tight shadow-sm">
-                        {modalNouveauSolde.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(modalNouveauSolde ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 

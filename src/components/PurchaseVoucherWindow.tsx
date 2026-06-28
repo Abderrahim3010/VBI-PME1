@@ -436,8 +436,8 @@ export default function PurchaseVoucherWindow({
     let rawAmount = 0;
     let totalQty = 0;
     draftItems.forEach(item => {
-      rawAmount += item.total;
-      totalQty += item.qty;
+      rawAmount += Number(item.total) || 0;
+      totalQty += Number(item.qty) || 0;
     });
 
     const totalHT = rawAmount;
@@ -445,16 +445,20 @@ export default function PurchaseVoucherWindow({
     const timbre = 0; // Disabled as requested: Timbre is always zero 
     const ttc = totalHT + tva + timbre;
 
-    let oldBalance = selectedSupplierObj ? selectedSupplierObj.balance : 0;
+    let oldBalance = selectedSupplierObj ? (Number(selectedSupplierObj.balance) || 0) : 0;
     
     // Adjust old balance if we are editing an existing voucher by subtracting the original voucher's net impact
     if (editingVoucherId && selectedVoucher && selectedSupplierObj) {
       if (selectedSupplierObj.name === selectedVoucher.supplier) {
-        oldBalance = Math.max(0, selectedSupplierObj.balance - (selectedVoucher.ttc - (selectedVoucher.versement || 0)));
+        const vTtc = Number(selectedVoucher.ttc) || 0;
+        const vVersement = Number(selectedVoucher.versement) || 0;
+        const sBalance = Number(selectedSupplierObj.balance) || 0;
+        oldBalance = Math.max(0, sBalance - (vTtc - vVersement));
       }
     }
 
-    const newBalance = oldBalance + (ttc - versement);
+    const safeVersement = Number(versement) || 0;
+    const newBalance = oldBalance + (ttc - safeVersement);
 
     return { rawAmount, totalQty, totalHT, tva, timbre, ttc, oldBalance, newBalance };
   }, [draftItems, selectedSupplierObj, versement, editingVoucherId, selectedVoucher]);
@@ -658,8 +662,10 @@ export default function PurchaseVoucherWindow({
   const handleConfirmPaymentAndSaveVoucher = () => {
     const finalVersement = Number(paymentVersement) || 0;
     
-    // Recalculate newBalance with the final versement from the dialog
-    const finalNewBalance = draftMetrics.oldBalance + (draftMetrics.ttc - finalVersement);
+    // Recalculate newBalance safely with the final versement from the dialog
+    const oldBal = Number(draftMetrics.oldBalance) || 0;
+    const totalTtc = Number(draftMetrics.ttc) || 0;
+    const finalNewBalance = oldBal + (totalTtc - finalVersement);
 
     const savedVoucher: PurchaseVoucher = {
       id: newVoucherId,
@@ -668,14 +674,14 @@ export default function PurchaseVoucherWindow({
       supplier: newSupplierName,
       itemsCount: draftItems.length,
       colisCount: draftItems.reduce((acc, t) => acc + (t.nbreColis || 0), 0),
-      amount: draftMetrics.rawAmount,
+      amount: Number(draftMetrics.rawAmount) || 0,
       remise: 0,
-      totalHT: draftMetrics.totalHT,
-      tva: draftMetrics.tva,
-      timbre: draftMetrics.timbre,
-      ttc: draftMetrics.ttc,
+      totalHT: Number(draftMetrics.totalHT) || 0,
+      tva: Number(draftMetrics.tva) || 0,
+      timbre: Number(draftMetrics.timbre) || 0,
+      ttc: totalTtc,
       versement: finalVersement,
-      oldBalance: draftMetrics.oldBalance,
+      oldBalance: oldBal,
       newBalance: finalNewBalance,
       items: draftItems
     };
@@ -1355,7 +1361,7 @@ export default function PurchaseVoucherWindow({
                       <td className="px-3 py-2 truncate max-w-[140px] select-all font-medium">{v.supplier}</td>
                       <td className="px-3 py-2 text-center text-slate-500 dark:text-slate-400">{v.itemsCount}</td>
                       <td className="px-3 py-2 text-right font-black text-indigo-950 dark:text-indigo-300">
-                        {v.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+                        {(v.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
                       </td>
                     </tr>
                   );
@@ -1368,7 +1374,7 @@ export default function PurchaseVoucherWindow({
                     <td className="px-3 py-2 truncate max-w-[140px] italic">{newSupplierName} (Mode d'Achat)</td>
                     <td className="px-3 py-2 text-center">{draftItems.length}</td>
                     <td className="px-3 py-2 text-right font-black">
-                      {draftMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+                      {(draftMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
                     </td>
                   </tr>
                 )}
@@ -1403,36 +1409,40 @@ export default function PurchaseVoucherWindow({
         {/* Compact Form Panel (Right) */}
         <div 
           style={{ width: `${100 - topSplitWidth}%` }} 
-          className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/85 flex flex-col gap-3 select-all overflow-y-auto h-full min-w-[220px] shadow-xs"
+          className="bg-white dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/85 flex flex-col gap-2 select-all overflow-y-auto h-full min-w-[220px] shadow-xs"
         >
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">N° Bon d'Achat</span>
-            <input
-              type="text"
-              readOnly
-              value={mode === 'create' ? newVoucherId : (selectedVoucher?.id || '')}
-              className="h-8.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-3 outline-none text-xs font-mono font-bold text-slate-700 dark:text-slate-300"
-            />
+          {/* Row 1: N° Bon d'Achat & Date d'opération */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">N° Bon d'Achat</span>
+              <input
+                type="text"
+                readOnly
+                value={mode === 'create' ? newVoucherId : (selectedVoucher?.id || '')}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 outline-none text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300"
+              />
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Date d'opération</span>
+              <input
+                type="text"
+                readOnly={mode === 'view'}
+                value={mode === 'create' ? newDate : (selectedVoucher?.date || '')}
+                onChange={(e) => mode === 'create' && setNewDate(e.target.value)}
+                className="h-7.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-2.5 font-mono text-[11px] text-slate-705 dark:text-slate-300"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">Date d'opération</span>
-            <input
-              type="text"
-              readOnly={mode === 'view'}
-              value={mode === 'create' ? newDate : (selectedVoucher?.date || '')}
-              onChange={(e) => mode === 'create' && setNewDate(e.target.value)}
-              className="h-8.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-3 font-mono text-xs text-slate-705 dark:text-slate-300"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5 bg-indigo-50/20 dark:bg-indigo-950/10 p-2.5 rounded-xl border border-indigo-150/10">
-            <span className="font-extrabold text-[10px] uppercase text-indigo-505 dark:text-indigo-400 tracking-wider">Fournisseur / Tiers</span>
+          {/* Row 2: Fournisseur / Tiers (Full width) */}
+          <div className="flex flex-col gap-1 bg-indigo-50/20 dark:bg-indigo-950/10 p-2 rounded-xl border border-indigo-150/10">
+            <span className="font-extrabold text-[9px] uppercase text-indigo-505 dark:text-indigo-400 tracking-wider">Fournisseur / Tiers</span>
             {mode === 'create' ? (
               <select
                 value={newSupplierName}
                 onChange={(e) => setNewSupplierName(e.target.value)}
-                className="h-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 text-xs font-bold text-indigo-950 dark:text-indigo-300 outline-none focus:border-indigo-300 cursor-pointer"
+                className="h-7.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 text-[11px] font-bold text-indigo-950 dark:text-indigo-300 outline-none focus:border-indigo-300 cursor-pointer"
               >
                 {suppliers.map(s => (
                   <option key={s.id} value={s.name}>{s.name}</option>
@@ -1443,53 +1453,62 @@ export default function PurchaseVoucherWindow({
                 type="text"
                 readOnly
                 value={selectedVoucher?.supplier || ''}
-                className="h-8.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-3 outline-none text-xs font-bold text-indigo-950 dark:text-indigo-300 truncate"
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 outline-none text-[11px] font-bold text-indigo-950 dark:text-indigo-300 truncate"
               />
             )}
           </div>
 
-          <hr className="border-slate-100 dark:border-slate-900 my-1 shrink-0" />
+          <hr className="border-slate-100 dark:border-slate-900 my-0.5 shrink-0" />
 
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">Ancien solde</span>
-            <input
-              type="text"
-              readOnly
-              value={displayMetrics.oldBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DA'}
-              className="h-8.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-3 text-right outline-none text-xs font-mono font-bold text-rose-600 dark:text-rose-400"
-            />
+          {/* Row 3: Ancien solde & Nouveau solde */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Ancien solde</span>
+              <input
+                type="text"
+                readOnly
+                value={(displayMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-rose-600 dark:text-rose-400"
+              />
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Nouveau solde</span>
+              <input
+                type="text"
+                readOnly
+                value={(displayMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">Montant total</span>
-            <input
-              type="text"
-              readOnly
-              value={displayMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DA'}
-              className="h-8.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-3 text-right outline-none text-xs font-mono font-bold text-indigo-950 dark:text-indigo-300"
-            />
-          </div>
+          {/* Row 4: Montant total & Versement d'achat */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Montant total</span>
+              <input
+                type="text"
+                readOnly
+                value={(displayMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-indigo-950 dark:text-indigo-300"
+              />
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">Versement d'achat</span>
-            <input
-              type="number"
-              disabled={mode === 'view'}
-              value={mode === 'create' ? versement : (selectedVoucher?.versement || 0)}
-              onChange={(e) => setVersement(Number(e.target.value))}
-              placeholder="0,00"
-              className="h-8.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-3 text-right text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 disabled:bg-slate-100/50 dark:disabled:bg-slate-900 disabled:text-slate-400"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="font-extrabold text-[10px] uppercase text-slate-500 tracking-wider">Nouveau solde</span>
-            <input
-              type="text"
-              readOnly
-              value={displayMetrics.newBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DA'}
-              className="h-8.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-3 text-right outline-none text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400"
-            />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Versement</span>
+              <input
+                type="number"
+                disabled={mode === 'view'}
+                value={mode === 'create' ? (versement || '') : (selectedVoucher?.versement || 0)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVersement(isNaN(val) ? 0 : val);
+                }}
+                placeholder="0,00"
+                className="h-7.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-2.5 text-right text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 disabled:bg-slate-100/50 dark:disabled:bg-slate-900 disabled:text-slate-400"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1518,9 +1537,9 @@ export default function PurchaseVoucherWindow({
       </div>
 
       {/* BOTTOM ACTION BUTTONS - MODERNIZED AND COHESIVE */}
-      <div className="flex flex-wrap items-center justify-between bg-white dark:bg-slate-900 p-2 border border-slate-200/50 dark:border-slate-800/85 rounded-2xl gap-2 shrink-0 select-none shadow-xs">
+      <div className="flex flex-nowrap items-center justify-between bg-white dark:bg-slate-900 p-2 border border-slate-200/50 dark:border-slate-800/85 rounded-2xl gap-2 shrink-0 select-none shadow-xs overflow-x-auto no-scrollbar">
         
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Bottom Table Pager Navigator */}
           <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/20 gap-1 shadow-inner shrink-0">
             <button
@@ -1560,37 +1579,15 @@ export default function PurchaseVoucherWindow({
               ⏭
             </button>
           </div>
-
-          {/* Search Box right beside the Pager buttons */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-1 px-2.5 rounded-xl border border-slate-200 dark:border-slate-850 shrink-0">
-            <span className="text-[12px]" title="Recherche dans ce bon d'achat">🔍</span>
-            <input
-              type="text"
-              placeholder="Filtrer ce bon..."
-              value={localSearchQuery}
-              onChange={(e) => setLocalSearchQuery(e.target.value)}
-              className="w-48 h-6 font-sans text-xs bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 font-bold"
-            />
-            {localSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setLocalSearchQuery('')}
-                className="text-[10px] text-slate-400 hover:text-slate-700 dark:hover:text-white font-extrabold px-1 cursor-pointer"
-                title="Effacer le filtre"
-              >
-                ✕
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Action buttons list */}
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-nowrap shrink-0 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => handleOpenProductDialog('add_new')}
             disabled={mode === 'view'}
-            className="px-3.5 h-9 rounded-xl font-bold bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px]"
+            className="px-3.5 h-9 rounded-xl font-bold bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px] shrink-0"
           >
             <span>➕ Nouveau</span>
             <span className="text-[8px] opacity-80 font-mono">[Ctrl+N]</span>
@@ -1600,7 +1597,7 @@ export default function PurchaseVoucherWindow({
             type="button"
             onClick={() => handleOpenProductDialog('insert_existing')}
             disabled={mode === 'view'}
-            className="px-3.5 h-9 rounded-xl font-bold bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px]"
+            className="px-3.5 h-9 rounded-xl font-bold bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px] shrink-0"
           >
             <span>📥 Insérer</span>
             <span className="text-[8px] opacity-80 font-mono">[Entrer]</span>
@@ -1610,7 +1607,7 @@ export default function PurchaseVoucherWindow({
             type="button"
             onClick={() => handleOpenProductDialog('edit_existing')}
             disabled={mode === 'view' || selectedDraftIdx === -1}
-            className="px-3.5 h-9 rounded-xl font-bold bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px]"
+            className="px-3.5 h-9 rounded-xl font-bold bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px] shrink-0"
           >
             <span>✏️ Modifier</span>
             <span className="text-[8px] opacity-80 font-mono">[F8]</span>
@@ -1620,7 +1617,7 @@ export default function PurchaseVoucherWindow({
             type="button"
             onClick={() => handleRemoveDraftItem(selectedDraftIdx)}
             disabled={mode === 'view' || selectedDraftIdx === -1}
-            className="px-3.5 h-9 rounded-xl font-bold bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 border border-rose-250 dark:border-rose-900/45 shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px]"
+            className="px-3.5 h-9 rounded-xl font-bold bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 border border-rose-250 dark:border-rose-900/45 shadow-xs cursor-pointer disabled:opacity-30 flex items-center gap-1.5 active:scale-95 transition-all text-[11px] shrink-0"
           >
             <span>❌ Supprimer</span>
             <span className="text-[8px] opacity-80 font-mono">[Suppr]</span>
@@ -1629,7 +1626,7 @@ export default function PurchaseVoucherWindow({
           <button
             type="button"
             onClick={() => alert("Impression du code-barre d'articles lancé sur étiquettes thermique.")}
-            className="px-3.5 h-9 rounded-xl font-bold bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-350 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all text-[11px]"
+            className="px-3.5 h-9 rounded-xl font-bold bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-350 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all text-[11px] shrink-0"
           >
             <span>🖨️ Étiquettes</span>
             <span className="text-[8px] opacity-80 font-mono">[F10]</span>
@@ -1639,7 +1636,7 @@ export default function PurchaseVoucherWindow({
             type="button"
             onClick={() => handleOpenProductDialog('insert_existing')}
             title="Recherche générale catalogue"
-            className="px-3 h-9 bg-slate-100 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border border-slate-200/40 dark:border-slate-850/40 font-bold rounded-xl text-[11px] flex items-center gap-1.5 hover:bg-slate-200 cursor-pointer"
+            className="px-3 h-9 bg-slate-100 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border border-slate-200/40 dark:border-slate-850/40 font-bold rounded-xl text-[11px] flex items-center gap-1.5 hover:bg-slate-200 cursor-pointer shrink-0"
           >
             <span>🌐 Stock</span>
           </button>
@@ -1656,11 +1653,35 @@ export default function PurchaseVoucherWindow({
           style={{ width: `${bottomSplitWidth}%` }} 
           className="flex flex-col rounded-2xl border border-slate-200/50 dark:border-slate-800/85 bg-white dark:bg-slate-950 h-full min-w-[250px] overflow-hidden shadow-xs"
         >
-          <div className="bg-slate-50 dark:bg-slate-900 font-bold px-4 py-2.5 border-b border-slate-150 dark:border-slate-850/60 text-slate-700 dark:text-slate-300 font-sans select-none flex justify-between items-center shrink-0">
-            <span className="font-display font-extrabold text-xs flex items-center gap-1.5">
-              <span className="text-emerald-500">🛒</span> Articles de ce Bon d'Achat
-            </span>
-            <span className="text-slate-400 font-mono text-[9px] uppercase tracking-wide">F8 pour éditer la ligne</span>
+          <div className="bg-slate-50 dark:bg-slate-900 font-bold px-4 py-2 border-b border-slate-150 dark:border-slate-850/60 text-slate-700 dark:text-slate-300 font-sans select-none flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="font-display font-extrabold text-xs flex items-center gap-1.5 shrink-0">
+                <span className="text-emerald-500">🛒</span> Articles de ce Bon d'Achat
+              </span>
+              
+              {/* Filter box right next to "Articles de ce Bon d'Achat" */}
+              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
+                <span className="text-[10px]" title="Recherche dans ce bon d'achat">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Filtrer ce bon..."
+                  value={localSearchQuery}
+                  onChange={(e) => setLocalSearchQuery(e.target.value)}
+                  className="w-32 h-5 font-sans text-[11px] bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 font-bold"
+                />
+                {localSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setLocalSearchQuery('')}
+                    className="text-[9px] text-slate-400 hover:text-slate-700 dark:hover:text-white font-extrabold px-0.5 cursor-pointer"
+                    title="Effacer le filtre"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+            <span className="text-slate-400 font-mono text-[9px] uppercase tracking-wide hidden sm:inline">F8 pour éditer la ligne</span>
           </div>
           <div className="flex-1 overflow-auto">
             <table className="w-full text-left font-sans text-xs border-collapse">
@@ -1707,10 +1728,10 @@ export default function PurchaseVoucherWindow({
                         <td className="px-1 py-2 text-center text-slate-400 dark:text-slate-500 font-mono">{item.colisage ?? 12}</td>
                         <td className={`px-1 py-2 text-center font-mono font-bold ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-indigo-950 dark:text-indigo-300'}`}>{item.qty}</td>
                         <td className="px-3 py-2 text-right font-mono font-bold">
-                          {item.price.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
+                          {(item.price ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
                         </td>
                         <td className={`px-3 py-2 text-right font-mono font-black ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                          {item.total.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
+                          {(item.total ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     );
@@ -1753,48 +1774,48 @@ export default function PurchaseVoucherWindow({
         {/* Sidebar Totals column (Right) */}
         <div 
           style={{ width: `${100 - bottomSplitWidth}%` }} 
-          className="bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 p-4 rounded-2xl flex flex-col gap-3 select-all overflow-y-auto h-full min-w-[200px] shadow-xs"
+          className="bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 p-2.5 rounded-2xl flex flex-col gap-1.5 select-all overflow-y-auto h-full min-w-[200px] shadow-xs"
         >
-          <div className="bg-indigo-500/10 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-extrabold px-3 py-1.5 rounded-xl text-[9.5px] tracking-wider text-center uppercase font-sans shrink-0">
+          <div className="bg-indigo-500/10 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-extrabold px-3 py-1 rounded-xl text-[9.5px] tracking-wider text-center uppercase font-sans shrink-0">
             Recap Financier Achat
           </div>
           
-          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">S/Total Brut</span>
+          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-900 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[8.5px]">S/Total Brut</span>
             <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-              {displayMetrics.rawAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+              {(displayMetrics.rawAmount ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
             </span>
           </div>
 
-          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">Remise Fournisseur</span>
+          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-900 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[8.5px]">Remise Fournisseur</span>
             <span className="font-mono font-bold text-rose-600 dark:text-rose-400">0,00 DA</span>
           </div>
 
-          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">Total HT</span>
+          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-900 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[8.5px]">Total HT</span>
             <span className="font-mono font-extrabold text-slate-800 dark:text-slate-100">
-              {displayMetrics.totalHT.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+              {(displayMetrics.totalHT ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
             </span>
           </div>
 
-          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">TVA (%)</span>
+          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-900 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[8.5px]">TVA (%)</span>
             <span className="font-mono text-slate-805 dark:text-slate-350">0,00 DA (0%)</span>
           </div>
 
-          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">Timbre Fiscal</span>
+          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-900 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[8.5px]">Timbre Fiscal</span>
             <span className="font-mono text-slate-805 dark:text-slate-350">
-              {displayMetrics.timbre.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+              {(displayMetrics.timbre ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
             </span>
           </div>
 
           {/* NET EN DINARS (TTC À PAYER) replaces previous styling to match sales */}
-          <div className="bg-slate-950 dark:bg-black p-3 rounded-xl text-center flex flex-col gap-0.5 shadow-md border border-slate-850/50 mt-auto shrink-0">
-            <span className="text-[8.5px] font-black text-amber-500 tracking-wider font-sans uppercase">NET EN DINARS (ACHAT)</span>
-            <span className="text-lg font-mono font-black text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.3)]">
-              {displayMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+          <div className="bg-slate-950 dark:bg-black p-2 rounded-xl text-center flex flex-col gap-0 shadow-md border border-slate-850/50 mt-auto shrink-0">
+            <span className="text-[8px] font-black text-amber-500 tracking-wider font-sans uppercase leading-none">NET EN DINARS (ACHAT)</span>
+            <span className="text-base font-mono font-black text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.3)] mt-0.5">
+              {(displayMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
             </span>
           </div>
         </div>
@@ -2522,7 +2543,7 @@ export default function PurchaseVoucherWindow({
                       >
                         {suppliers.map(s => (
                           <option key={s.id} value={s.name}>
-                            {s.code} - {s.name} (Solde: {s.balance.toLocaleString('fr-FR')} DA)
+                            {s.code} - {s.name} (Solde: {(s.balance ?? 0).toLocaleString('fr-FR')} DA)
                           </option>
                         ))}
                       </select>
@@ -2635,7 +2656,7 @@ export default function PurchaseVoucherWindow({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Ancien Solde Tier:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-slate-700 dark:text-slate-300 rounded-lg min-w-[120px] text-right">
-                    {(draftMetrics.oldBalance).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {(draftMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -2643,7 +2664,7 @@ export default function PurchaseVoucherWindow({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-m3-primary dark:text-sky-400 text-[10px] uppercase tracking-wide">Net à Payer:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-black text-xs text-m3-primary dark:text-sky-400 rounded-lg min-w-[120px] text-right">
-                    {(draftMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {(draftMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -2651,7 +2672,7 @@ export default function PurchaseVoucherWindow({
                 <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
                   <span className="font-bold text-indigo-900 dark:text-indigo-400 text-[10px] uppercase tracking-wide">Amortissement total:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-indigo-950 dark:text-indigo-350 rounded-lg min-w-[120px] text-right">
-                    {(draftMetrics.oldBalance + draftMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {((draftMetrics.oldBalance ?? 0) + (draftMetrics.ttc ?? 0)).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -2675,7 +2696,7 @@ export default function PurchaseVoucherWindow({
                 <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
                   <span className="font-bold text-slate-850 dark:text-slate-200 text-[10px] uppercase tracking-wide">Nouveau Solde Tier:</span>
                   <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-950 font-mono font-black text-xs text-rose-600 dark:text-rose-400 rounded-lg min-w-[120px] text-right">
-                    {((draftMetrics.oldBalance + draftMetrics.ttc) - paymentVersement).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {(((Number(draftMetrics.oldBalance) || 0) + (Number(draftMetrics.ttc) || 0)) - (Number(paymentVersement) || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 

@@ -271,45 +271,45 @@ export default function WindowFrame({
       <div
         onPointerDown={handlePointerDown}
         className={`
-          h-11 flex items-center justify-between px-4 cursor-default relative rounded-2xl
-          bg-m3-surface-container dark:bg-slate-950/60 text-slate-800 dark:text-slate-100 text-sm font-semibold font-display select-none
-          border-b border-m3-outline-variant/10 dark:border-slate-800/40 mb-2
+          h-8 flex items-center justify-between px-2.5 cursor-default relative rounded-xl
+          bg-m3-surface-container dark:bg-slate-950/60 text-slate-800 dark:text-slate-100 text-xs font-semibold font-display select-none
+          border-b border-m3-outline-variant/10 dark:border-slate-800/40 mb-1
         `}
       >
-        <div className="flex items-center gap-2.5 truncate">
-          <span className="text-base shrink-0 select-none bg-m3-primary/10 dark:bg-sky-500/10 w-7 h-7 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-1.5 truncate">
+          <span className="text-xs shrink-0 select-none bg-m3-primary/10 dark:bg-sky-500/10 w-5.5 h-5.5 rounded-md flex items-center justify-center">
             {getWindowEmoji(id)}
           </span>
-          <span className="truncate select-none font-display tracking-tight text-slate-900 dark:text-slate-100 font-bold">
+          <span className="truncate select-none font-display tracking-tight text-slate-900 dark:text-slate-100 font-bold text-[11px] sm:text-xs">
             {title}
           </span>
         </div>
         
         {/* Material 3 Styled window controls */}
-        <div className="flex items-center gap-1.5 select-none shrink-0">
+        <div className="flex items-center gap-1 select-none shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); onMinimize(); }}
             id={`btn-min-${id}`}
             title="Réduire"
-            className="w-7 h-7 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-200/65 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+            className="w-5.5 h-5.5 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-200/65 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
           >
-            <Minus size={14} className="stroke-[2.5]" />
+            <Minus size={10} className="stroke-[2.5]" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onMaximize(); }}
             id={`btn-max-${id}`}
             title={isMaximized ? "Restaurer" : "Agrandir"}
-            className="w-7 h-7 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-200/65 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+            className="w-5.5 h-5.5 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-200/65 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
           >
-            {isMaximized ? <Minimize2 size={13} className="stroke-[2.5]" /> : <Square size={11} className="stroke-[2.5]" />}
+            {isMaximized ? <Minimize2 size={10} className="stroke-[2.5]" /> : <Square size={8.5} className="stroke-[2.5]" />}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             id={`btn-close-${id}`}
             title="Quitter"
-            className="w-7 h-7 rounded-full flex items-center justify-center bg-rose-50 hover:bg-rose-500 hover:text-white dark:bg-rose-950/20 text-rose-600 dark:hover:bg-rose-600 transition-all cursor-pointer font-bold"
+            className="w-5.5 h-5.5 rounded-full flex items-center justify-center bg-rose-50 hover:bg-rose-500 hover:text-white dark:bg-rose-950/20 text-rose-600 dark:hover:bg-rose-600 transition-all cursor-pointer font-bold"
           >
-            <X size={14} className="stroke-[3]" />
+            <X size={10} className="stroke-[3]" />
           </button>
         </div>
       </div>

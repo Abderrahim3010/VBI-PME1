@@ -175,7 +175,7 @@ export default function ClientsSuppliersWindow({
             📊 Registre Comptable {mode === 'clients' ? 'des Clients' : 'des Fournisseurs'}
           </span>
           <span className="text-[10px] bg-slate-200/60 dark:bg-slate-850 px-2 py-0.5 rounded-md font-mono text-slate-500">
-            Total Encours: {recordsList.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('fr-FR')} DA
+            Total Encours: {recordsList.reduce((acc, curr) => acc + (curr.balance ?? 0), 0).toLocaleString('fr-FR')} DA
           </span>
         </div>
         
@@ -195,10 +195,11 @@ export default function ClientsSuppliersWindow({
               {recordsList.length > 0 ? (
                 recordsList.map(item => {
                   const isClient = mode === 'clients';
-                  const isPositive = item.balance > 0;
+                  const balanceVal = item.balance ?? 0;
+                  const isPositive = balanceVal > 0;
                   const balanceColor = isClient 
                     ? (isPositive ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')
-                    : (item.balance < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400');
+                    : (balanceVal < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400');
                   
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-850/60 transition-colors">
@@ -223,7 +224,7 @@ export default function ClientsSuppliersWindow({
                         )}
                       </td>
                       <td className={`px-4 py-2.5 text-right font-bold ${balanceColor}`}>
-                        {item.balance.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                        {balanceVal.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                       </td>
                       <td className="px-4 py-2.5 text-center flex items-center justify-center gap-1.5 h-10">
                         {/* Edit Button */}

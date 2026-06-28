@@ -484,7 +484,7 @@ export default function SituationClientsWindow({
             >
               {activeClients.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.name} — [Solde: {c.balance.toLocaleString('fr-FR')} DA]
+                  {c.name} — [Solde: {(c.balance ?? 0).toLocaleString('fr-FR')} DA]
                 </option>
               ))}
             </select>
@@ -768,7 +768,7 @@ export default function SituationClientsWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-550 dark:text-slate-400">Solde initial :</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[90px] text-right text-slate-705 dark:text-slate-205 shadow-inner">
-                {ledgerMetrics.soldeInitial.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.soldeInitial ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -776,7 +776,7 @@ export default function SituationClientsWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-550 dark:text-slate-400">Total des Ventes :</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[110px] text-right text-orange-700 dark:text-orange-400 shadow-inner">
-                {ledgerMetrics.totalVentes.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.totalVentes ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -784,7 +784,7 @@ export default function SituationClientsWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-550 dark:text-slate-400">Total des Versements :</span>
               <div className="bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-2.5 py-1 text-xs font-mono font-black min-w-[110px] text-right text-emerald-700 dark:text-emerald-400 shadow-inner">
-                {ledgerMetrics.totalVersements.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.totalVersements ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -792,7 +792,7 @@ export default function SituationClientsWindow({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase text-slate-700 dark:text-emerald-400 bg-emerald-50 dark:bg-slate-850 px-1.5 py-0.5 rounded">Solde :</span>
               <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-900 rounded px-3 py-1 text-xs font-mono font-black min-w-[110px] text-right text-red-700 dark:text-red-400 shadow-sm leading-none flex items-center justify-end">
-                {ledgerMetrics.soldeFinal.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {(ledgerMetrics.soldeFinal ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           </div>
@@ -961,7 +961,7 @@ export default function SituationClientsWindow({
                     <div>
                       <span className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 mb-0.5">Dette Actuelle (Ancien Solde)</span>
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 py-1 px-2.5 font-mono font-black text-right text-sm text-slate-800 dark:text-slate-100 rounded leading-tight shadow-sm">
-                        {modalAncienSolde.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(modalAncienSolde ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 
@@ -985,7 +985,7 @@ export default function SituationClientsWindow({
                     <div>
                       <span className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 mb-0.5">Dette Restante (Nouveau Solde)</span>
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 py-1 px-2.5 font-mono font-black text-right text-sm text-slate-850 dark:text-slate-100 rounded leading-tight shadow-sm">
-                        {modalNouveauSolde.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(modalNouveauSolde ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
 

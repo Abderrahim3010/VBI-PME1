@@ -95,9 +95,9 @@ export default function SalesVoucherWindow({
   const [isProductChooserOpen, setIsProductChooserOpen] = useState(false);
   const [chooserSearchQuery, setChooserSearchQuery] = useState('');
   const [selectedProductInChooser, setSelectedProductInChooser] = useState<Product | null>(null);
-  const [chooserQty, setChooserQty] = useState<number>(1);
+  const [chooserQty, setChooserQty] = useState<number | ''>(1);
   const [selectedPriceType, setSelectedPriceType] = useState<'prixVente1' | 'prixVente2' | 'prixVente3'>('prixVente1');
-  const [customSellingPrice, setCustomSellingPrice] = useState<number>(0);
+  const [customSellingPrice, setCustomSellingPrice] = useState<number | ''>(0);
   const [isConfigPopupOpen, setIsConfigPopupOpen] = useState(false);
 
   // Client Selection and Creation Modal states
@@ -451,6 +451,12 @@ export default function SalesVoucherWindow({
       return;
     }
 
+    if (newClientName.toLowerCase() === 'anonyme') {
+      // Save immediately with full payment without opening the dialog for Anonyme client
+      handleConfirmPaymentAndSaveVoucher(computedMetrics.ttc);
+      return;
+    }
+
     // Default to ESPECE with pre-filled full versement
     setPaymentMode('ESPECE');
     setPaymentVersement(Number((computedMetrics.ttc).toFixed(2)));
@@ -458,8 +464,10 @@ export default function SalesVoucherWindow({
     setIsPaymentDialogOpen(true);
   };
 
-  const handleConfirmPaymentAndSaveVoucher = () => {
-    const finalVersement = paymentMode === 'A_TERME' ? 0 : Number(paymentVersement) || 0;
+  const handleConfirmPaymentAndSaveVoucher = (customVersement?: number) => {
+    const finalVersement = customVersement !== undefined
+      ? customVersement
+      : (paymentMode === 'A_TERME' ? 0 : Number(paymentVersement) || 0);
     
     // Recalculate newBalance with final versement
     const finalNewBalance = computedMetrics.oldBalance + (computedMetrics.ttc - finalVersement);
@@ -914,7 +922,7 @@ export default function SalesVoucherWindow({
                     onChange={(e) => setNewClientName(e.target.value)}
                     className="h-7 px-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-sans font-extrabold text-blue-900 dark:text-sky-400 focus:outline-none w-full"
                   >
-                    <option value="Anonyme">Anonyme (Client Anonyme)</option>
+                    <option value="Anonyme">ANONYME</option>
                     {clients.filter(c => c.name.toLowerCase() !== 'anonyme').map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
@@ -923,7 +931,7 @@ export default function SalesVoucherWindow({
                   <input
                     type="text"
                     readOnly
-                    value={selectedSale?.client || ''}
+                    value={(selectedSale?.client?.toLowerCase() === 'anonyme') ? 'ANONYME' : (selectedSale?.client || '')}
                     className="h-7 px-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-sans font-extrabold text-[10px] text-slate-900 dark:text-slate-100 focus:outline-none w-full"
                   />
                 )}
@@ -1006,13 +1014,13 @@ export default function SalesVoucherWindow({
           <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
             <span style={{ fontFamily: 'Arial', fontSize: '11.5px' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Ancien solde:</span>
             <span className="text-red-600 dark:text-red-400 font-extrabold text-xs">
-              {computedMetrics.oldBalance.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+              {(computedMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
             </span>
           </div>
           <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
             <span style={{ fontFamily: 'Arial', fontSize: '12.5px' }} className="text-[9.5px] text-m3-primary dark:text-sky-400 font-semibold font-sans">Montant bon:</span>
             <span className="text-blue-900 dark:text-sky-300 font-extrabold text-xs">
-              {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+              {(computedMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
             </span>
           </div>
           <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-rose-200 dark:border-rose-900/40 rounded-lg">
@@ -1029,7 +1037,7 @@ export default function SalesVoucherWindow({
           <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
             <span style={{ fontSize: '12.5px', fontFamily: 'Arial', fontWeight: 'bold' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Nouveau solde:</span>
             <span className="text-rose-600 dark:text-rose-400 font-extrabold text-xs">
-              {computedMetrics.newBalance.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+              {(computedMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
             </span>
           </div>
         </div>
@@ -1305,10 +1313,10 @@ export default function SalesVoucherWindow({
                           {item.qty}
                         </td>
                         <td className="px-3 py-2 text-right font-mono select-all">
-                          {item.price.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+                          {(item.price ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
                         </td>
                         <td className="px-3 py-2 text-right font-mono font-extrabold select-all">
-                          {item.total.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+                          {(item.total ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
                         </td>
                       </tr>
                     );
@@ -1327,7 +1335,7 @@ export default function SalesVoucherWindow({
             <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
               <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">Montant Brut</span>
               <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-black text-slate-800 dark:text-slate-200">
-                {computedMetrics.rawAmount.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                {(computedMetrics.rawAmount ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
               </span>
             </div>
 
@@ -1346,21 +1354,21 @@ export default function SalesVoucherWindow({
             <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
               <span style={{ fontFamily: 'Arial', fontSize: '10.5px' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">Total HT</span>
               <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-extrabold text-slate-800 dark:text-slate-200">
-                {computedMetrics.totalHT.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                {(computedMetrics.totalHT ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
               </span>
             </div>
 
             <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
               <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">TVA (19%)</span>
               <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-bold text-blue-900 dark:text-sky-400">
-                {computedMetrics.tva.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                {(computedMetrics.tva ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
               </span>
             </div>
 
             <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-900">
               <span style={{ fontSize: '10.5px', fontFamily: 'Arial' }} className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[9px]">TIMBRE FISCAL</span>
               <span style={{ fontSize: '11.5px', fontFamily: 'Arial' }} className="font-bold text-amber-700 dark:text-amber-450">
-                {computedMetrics.timbre.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                {(computedMetrics.timbre ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
               </span>
             </div>
 
@@ -1368,14 +1376,14 @@ export default function SalesVoucherWindow({
               <div className="flex justify-between items-center w-full">
                 <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="font-black text-blue-900 dark:text-sky-300 uppercase tracking-wide text-[9.5px]">Net à Payer (TTC)</span>
                 <span style={{ fontSize: '12.5px', fontFamily: 'Arial' }} className="font-mono font-black text-blue-900 dark:text-sky-400 text-xs">
-                  {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                  {(computedMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                 </span>
               </div>
               {showBenefit && (
                 <div className="flex justify-between items-center w-full pt-1 border-t border-dashed border-emerald-500/40 text-[9px] select-all">
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Marge Bénéficiaire :</span>
                   <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-[10.5px]">
-                    +{totalBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    +{(totalBenefit ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </span>
                 </div>
               )}
@@ -1391,7 +1399,7 @@ export default function SalesVoucherWindow({
           <div className="bg-slate-950 dark:bg-black p-2.5 rounded-xl text-center flex flex-col gap-0.5 shadow-md border border-slate-800/50 mt-1 shrink-0">
             <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="text-[9.5px] font-black text-amber-500 tracking-wider font-display uppercase">NET EN DINARS (TTC À PAYER)</span>
             <span style={{ fontFamily: 'Arial' }} className="text-xl font-mono font-black text-emerald-400 dark:text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.4)]">
-              {computedMetrics.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+              {(computedMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
             </span>
           </div>
         </div>
@@ -1543,7 +1551,7 @@ export default function SalesVoucherWindow({
                               {p.designation}
                             </td>
                             <td style={{ width: colWidths.prixUnitaire, maxWidth: colWidths.prixUnitaire }} className="px-3 py-1.5 text-right font-mono font-bold truncate">
-                              {p.prixVente1.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                              {(p.prixVente1 ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                             </td>
                             <td style={{ width: colWidths.prixAchat, maxWidth: colWidths.prixAchat }} className="px-3 py-1.5 text-right font-mono text-slate-400 dark:text-slate-500 truncate">
                               {(p.prixAchat || p.prixDeRevient || 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
@@ -1628,7 +1636,7 @@ export default function SalesVoucherWindow({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wide">Ancien Solde:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-slate-700 dark:text-slate-300 rounded-lg min-w-[120px] text-right">
-                    {(computedMetrics.oldBalance).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {(computedMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -1636,7 +1644,7 @@ export default function SalesVoucherWindow({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-m3-primary dark:text-sky-400 text-[10px] uppercase tracking-wide">Net à Payer:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-black text-xs text-m3-primary dark:text-sky-400 rounded-lg min-w-[120px] text-right">
-                    {(computedMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {(computedMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -1644,7 +1652,7 @@ export default function SalesVoucherWindow({
                 <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
                   <span className="font-bold text-indigo-900 dark:text-indigo-400 text-[10px] uppercase tracking-wide">Amortissement total:</span>
                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 font-mono font-bold text-xs text-indigo-950 dark:text-indigo-300 rounded-lg min-w-[120px] text-right">
-                    {(computedMetrics.oldBalance + computedMetrics.ttc).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {((computedMetrics.oldBalance ?? 0) + (computedMetrics.ttc ?? 0)).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -1668,7 +1676,7 @@ export default function SalesVoucherWindow({
                 <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
                   <span className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase tracking-wide">Nouveau Solde Tiers:</span>
                   <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-950 font-mono font-black text-xs text-rose-600 dark:text-rose-400 rounded-lg min-w-[120px] text-right">
-                    {Math.max(0, (computedMetrics.oldBalance + computedMetrics.ttc) - paymentVersement).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                    {Math.max(0, ((computedMetrics.oldBalance ?? 0) + (computedMetrics.ttc ?? 0)) - paymentVersement).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                   </div>
                 </div>
 
@@ -1751,7 +1759,7 @@ export default function SalesVoucherWindow({
                 </div>
                 <div className="flex justify-between border-t border-rose-200/30 pt-1 mt-1 font-bold">
                   <span>Montant TTC :</span>
-                  <span>{selectedSale.ttc.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA</span>
+                  <span>{(selectedSale.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA</span>
                 </div>
               </div>
 
@@ -1836,7 +1844,7 @@ export default function SalesVoucherWindow({
                       <div className="flex items-center gap-2.5">
                         <div className="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-950 flex items-center justify-center text-xs">👤</div>
                         <div>
-                          <div className="font-bold">Anonyme</div>
+                          <div className="font-bold">ANONYME</div>
                           <div className="text-[9px] text-slate-400 font-mono">Client de comptoir</div>
                         </div>
                       </div>
@@ -1871,8 +1879,8 @@ export default function SalesVoucherWindow({
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className={`text-[10px] font-bold font-mono ${c.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {c.balance.toLocaleString('fr-FR')} DA
+                          <span className={`text-[10px] font-bold font-mono ${(c.balance ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {(c.balance ?? 0).toLocaleString('fr-FR')} DA
                           </span>
                         </div>
                       </div>
@@ -1982,7 +1990,9 @@ export default function SalesVoucherWindow({
             onSubmit={(e) => {
               e.preventDefault();
               if (selectedProductInChooser) {
-                insertProductDirectly(selectedProductInChooser, chooserQty, customSellingPrice);
+                const qty = chooserQty === '' ? 1 : Number(chooserQty);
+                const price = customSellingPrice === '' ? 0 : Number(customSellingPrice);
+                insertProductDirectly(selectedProductInChooser, qty, price);
                 setIsConfigPopupOpen(false);
                 setIsProductChooserOpen(false); // Also close the main chooser after successfully adding
               }
@@ -2034,7 +2044,14 @@ export default function SalesVoucherWindow({
                     min="1"
                     required
                     value={chooserQty}
-                    onChange={(e) => setChooserQty(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setChooserQty('');
+                      } else {
+                        setChooserQty(Number(val));
+                      }
+                    }}
                     className="h-9.5 px-3 font-mono font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 w-full focus:outline-none focus:border-teal-500 text-sm"
                   />
                 </div>
@@ -2065,7 +2082,7 @@ export default function SalesVoucherWindow({
                         }`}
                       >
                         <span className="text-[8px] opacity-75">{item.label}</span>
-                        <span className="font-mono mt-0.5">{priceVal.toLocaleString('fr-FR')} DA</span>
+                        <span className="font-mono mt-0.5">{(priceVal ?? 0).toLocaleString('fr-FR')} DA</span>
                       </button>
                     );
                   })}
@@ -2092,12 +2109,17 @@ export default function SalesVoucherWindow({
                     required
                     value={customSellingPrice}
                     onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setCustomSellingPrice(val);
-                      if (val !== selectedProductInChooser.prixVente1 && 
-                          val !== selectedProductInChooser.prixVente2 && 
-                          val !== selectedProductInChooser.prixVente3) {
-                        setSelectedPriceType('' as any);
+                      const valStr = e.target.value;
+                      if (valStr === '') {
+                        setCustomSellingPrice('');
+                      } else {
+                        const val = Number(valStr);
+                        setCustomSellingPrice(val);
+                        if (val !== selectedProductInChooser.prixVente1 && 
+                            val !== selectedProductInChooser.prixVente2 && 
+                            val !== selectedProductInChooser.prixVente3) {
+                          setSelectedPriceType('' as any);
+                        }
                       }
                     }}
                     className="h-9.5 px-3 font-mono font-black rounded-xl border border-rose-350 focus:border-rose-500 bg-rose-50/20 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 w-full focus:outline-none text-sm"
@@ -2108,8 +2130,10 @@ export default function SalesVoucherWindow({
               {/* Benefit Box */}
               {(() => {
                 const purchasePrice = selectedProductInChooser.prixAchat || selectedProductInChooser.prixDeRevient || 0;
-                const unitBenefit = customSellingPrice - purchasePrice;
-                const totalBenefit = unitBenefit * chooserQty;
+                const price = customSellingPrice === '' ? 0 : Number(customSellingPrice);
+                const qty = chooserQty === '' ? 1 : Number(chooserQty);
+                const unitBenefit = price - purchasePrice;
+                const totalBenefit = unitBenefit * qty;
                 const isLoss = unitBenefit < 0;
 
                 return (
@@ -2123,7 +2147,7 @@ export default function SalesVoucherWindow({
                         {isLoss ? '⚠️ Perte Estimée' : '💰 Bénéfice Estimé'}
                       </span>
                       <span className="text-[8px] font-sans font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-slate-500">
-                        {chooserQty} unité(s)
+                        {qty} unité(s)
                       </span>
                     </div>
 
@@ -2131,13 +2155,13 @@ export default function SalesVoucherWindow({
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Par Unité</span>
                         <span className={`text-xs font-black ${isLoss ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          {unitBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                          {(unitBenefit ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                         </span>
                       </div>
                       <div className="flex flex-col text-right">
                         <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Total</span>
                         <span className={`text-sm font-black ${isLoss ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          {totalBenefit.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
+                          {(totalBenefit ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA
                         </span>
                       </div>
                     </div>

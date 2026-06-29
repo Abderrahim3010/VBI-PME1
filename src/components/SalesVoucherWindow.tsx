@@ -1261,12 +1261,14 @@ export default function SalesVoucherWindow({
 
         {/* Central Balance / Cash Account summary card */}
         <div className="w-[190px] bg-slate-50 dark:bg-slate-900 p-1.5 border border-slate-300/10 rounded-2xl flex flex-col gap-1 text-xs font-mono font-bold leading-tight shadow-xs select-all shrink-0">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
-            <span style={{ fontFamily: 'Arial', fontSize: '11.5px' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Ancien solde:</span>
-            <span className="text-red-600 dark:text-red-400 font-extrabold text-xs">
-              {(computedMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
-            </span>
-          </div>
+          {selectedClientObj.name.toLowerCase() !== 'anonyme' && (
+            <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
+              <span style={{ fontFamily: 'Arial', fontSize: '11.5px' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Ancien solde:</span>
+              <span className="text-red-600 dark:text-red-400 font-extrabold text-xs">
+                {(computedMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
             <span style={{ fontFamily: 'Arial', fontSize: '12.5px' }} className="text-[9.5px] text-m3-primary dark:text-sky-400 font-semibold font-sans">Montant bon:</span>
             <span className="text-blue-900 dark:text-sky-300 font-extrabold text-xs">
@@ -1284,12 +1286,14 @@ export default function SalesVoucherWindow({
               style={{ direction: 'ltr' }}
             />
           </div>
-          <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
-            <span style={{ fontSize: '12.5px', fontFamily: 'Arial', fontWeight: 'bold' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Nouveau solde:</span>
-            <span className="text-rose-600 dark:text-rose-400 font-extrabold text-xs">
-              {(computedMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
-            </span>
-          </div>
+          {selectedClientObj.name.toLowerCase() !== 'anonyme' && (
+            <div className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-0.5 border border-slate-200/50 dark:border-slate-800/55 rounded-lg">
+              <span style={{ fontSize: '12.5px', fontFamily: 'Arial', fontWeight: 'bold' }} className="text-[9.5px] text-slate-500 dark:text-slate-400 font-semibold font-sans">Nouveau solde:</span>
+              <span className="text-rose-600 dark:text-rose-400 font-extrabold text-xs">
+                {(computedMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Rightmost Commerciaux / Transaction box */}

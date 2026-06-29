@@ -1074,7 +1074,7 @@ export default function PurchaseVoucherWindow({
       // Main window hotkeys
       if (e.key === 'F1') {
         e.preventDefault();
-        if (mode !== 'create') handleNewVoucher();
+        handleNewVoucher();
       }
       if (e.key === 'F2') {
         e.preventDefault();
@@ -1203,8 +1203,7 @@ export default function PurchaseVoucherWindow({
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={handleNewVoucher}
-              disabled={mode === 'create'}
-              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:to-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-transform duration-100 active:scale-95 disabled:opacity-40"
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:to-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-transform duration-100 active:scale-95"
             >
               <span className="text-base">📄</span>
               <div className="flex flex-col text-left font-sans">
@@ -1630,7 +1629,11 @@ export default function PurchaseVoucherWindow({
         {/* Table of items details */}
         <div 
           style={{ width: `${bottomSplitWidth}%` }} 
-          className="flex flex-col rounded-2xl border border-slate-200/50 dark:border-slate-800/85 bg-white dark:bg-slate-950 h-full min-w-[250px] overflow-hidden shadow-xs"
+          className={`flex flex-col rounded-2xl border border-slate-200/50 dark:border-slate-800/85 bg-white dark:bg-slate-950 h-full min-w-[250px] overflow-hidden shadow-xs transition-all duration-300 ${
+            mode === 'view'
+              ? 'opacity-65 grayscale bg-slate-50/70 dark:bg-slate-900/40 border-slate-300 dark:border-slate-850/60'
+              : ''
+          }`}
         >
           <div className="bg-slate-50 dark:bg-slate-900 font-bold px-4 py-2 border-b border-slate-150 dark:border-slate-850/60 text-slate-700 dark:text-slate-300 font-sans select-none flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
@@ -1719,12 +1722,7 @@ export default function PurchaseVoucherWindow({
               </tbody>
             </table>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-900 px-4 py-3 flex justify-between items-center border-t border-slate-200/40 dark:border-slate-800/40 font-sans select-none shrink-0">
-            <span className="font-bold text-slate-500 uppercase text-[10px] tracking-wider">Total des d'articles</span>
-            <span className="font-mono font-black text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 dark:bg-indigo-950/40 px-3 py-1 rounded-xl">
-              {displayMetrics.totalQty} Articles
-            </span>
-          </div>
+
         </div>
 
         {/* DRAG SPLITTER (Width) */}

@@ -247,7 +247,7 @@ export default function SituationClientsWindow({
   const ledgerWithBalances = useMemo(() => {
     if (!currentClient) return [];
 
-    const soldeFinal = currentClient.balance || 0;
+    const soldeFinal = Number(currentClient.balance) || 0;
     
     let totalVentes = 0;
     let totalVersements = 0;
@@ -288,7 +288,7 @@ export default function SituationClientsWindow({
 
   // Unfiltered Ledger Metrics (Bottom totals) - completely consistent!
   const ledgerMetrics = useMemo(() => {
-    const soldeFinal = currentClient?.balance || 0;
+    const soldeFinal = Number(currentClient?.balance) || 0;
     
     let totalVentes = 0;
     let totalVersements = 0;

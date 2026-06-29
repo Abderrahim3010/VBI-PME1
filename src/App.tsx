@@ -171,7 +171,11 @@ export default function App() {
   });
 
   const [clients, setClients] = useState<Client[]>(() => {
-    return getStorageJson('compos_clients', INITIAL_CLIENTS);
+    const raw = getStorageJson('compos_clients', INITIAL_CLIENTS);
+    return raw.map(c => ({
+      ...c,
+      balance: isNaN(Number(c.balance)) ? 0 : Number(c.balance)
+    }));
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
@@ -289,7 +293,11 @@ export default function App() {
         setUsers(parseValue(data, 'compos_users', DEFAULT_USERS));
         setTransactionLogs(parseValue(data, 'compos_transaction_logs', DEFAULT_TRANSACTION_LOGS));
         setProducts(parseValue(data, 'compos_products', INITIAL_PRODUCTS));
-        setClients(parseValue(data, 'compos_clients', INITIAL_CLIENTS));
+        const loadedClients = parseValue(data, 'compos_clients', INITIAL_CLIENTS);
+        setClients(loadedClients.map(c => ({
+          ...c,
+          balance: isNaN(Number(c.balance)) ? 0 : Number(c.balance)
+        })));
         setSuppliers(parseValue(data, 'compos_suppliers', INITIAL_SUPPLIERS));
         setPurchases(parseValue(data, 'compos_purchases', INITIAL_PURCHASES));
         setSales(parseValue(data, 'compos_sales', INITIAL_SALES));
@@ -747,7 +755,8 @@ export default function App() {
     setClients(prevClients => {
       return prevClients.map(c => {
         if (c.name === voucher.client) {
-          return { ...c, balance: voucher.newBalance };
+          const nextBal = Number(voucher.newBalance);
+          return { ...c, balance: isNaN(nextBal) ? c.balance : nextBal };
         }
         return c;
       });
@@ -767,15 +776,18 @@ export default function App() {
           if (c.name === updatedVoucher.client) {
             // Same client - revert old balance impact and add new impact
             const reverted = c.balance - (oldVoucher.ttc - oldVoucher.versement);
-            return { ...c, balance: Math.max(0, reverted + (updatedVoucher.ttc - updatedVoucher.versement)) };
+            const nextBal = reverted + (updatedVoucher.ttc - updatedVoucher.versement);
+            return { ...c, balance: isNaN(Number(nextBal)) ? c.balance : Math.max(0, Number(nextBal)) };
           }
         } else {
           // Different clients
           if (oldVoucher && c.name === oldVoucher.client) {
-            return { ...c, balance: Math.max(0, c.balance - (oldVoucher.ttc - oldVoucher.versement)) };
+            const nextBal = c.balance - (oldVoucher.ttc - oldVoucher.versement);
+            return { ...c, balance: isNaN(Number(nextBal)) ? c.balance : Math.max(0, Number(nextBal)) };
           }
           if (c.name === updatedVoucher.client) {
-            return { ...c, balance: c.balance + (updatedVoucher.ttc - updatedVoucher.versement) };
+            const nextBal = c.balance + (updatedVoucher.ttc - updatedVoucher.versement);
+            return { ...c, balance: isNaN(Number(nextBal)) ? c.balance : Math.max(0, Number(nextBal)) };
           }
         }
         return c;

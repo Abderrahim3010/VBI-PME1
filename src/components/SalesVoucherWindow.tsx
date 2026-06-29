@@ -1,6 +1,21 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Client, SalesVoucher, VoucherItem } from '../types';
 
+interface OpenVoucher {
+  id: string; // The draft ID or edited ID
+  isEditingExisting: boolean;
+  date: string;
+  time: string;
+  clientName: string;
+  type: 'VENTE' | 'RETOUR';
+  vendeurName: string;
+  observations: string;
+  versement: number;
+  remise: number;
+  tvaRate: number;
+  draftItems: VoucherItem[];
+}
+
 interface SalesVoucherWindowProps {
   products: Product[];
   clients: Client[];
@@ -31,6 +46,10 @@ export default function SalesVoucherWindow({
 
   // Mode: 'view' or 'create'
   const [mode, setMode] = useState<'view' | 'create'>('view');
+
+  // List of currently open drafts/bons (can have multiple active drafts open at once)
+  const [openVouchers, setOpenVouchers] = useState<OpenVoucher[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
 
   // Local replicas of products to calculate stock changes in draft / edit mode correctly
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
@@ -107,6 +126,39 @@ export default function SalesVoucherWindow({
   const [clientFormPhone, setClientFormPhone] = useState('');
   const [clientFormAddress, setClientFormAddress] = useState('');
   const [clientFormBalance, setClientFormBalance] = useState<string>('0');
+
+  // CUSTOM RETRO DIALOG BOX STATE (to completely bypass blocked iframe alert/confirm modals)
+  const [retroDialog, setRetroDialog] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: ''
+  });
+
+  const showRetroAlert = (message: string, title = "Messages") => {
+    setRetroDialog({
+      isOpen: true,
+      type: 'alert',
+      title,
+      message
+    });
+  };
+
+  const showRetroConfirm = (message: string, onConfirm: () => void, title = "Messages") => {
+    setRetroDialog({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      onConfirm
+    });
+  };
 
   const handleSelectClient = (clientName: string) => {
     if (mode !== 'create') {
@@ -195,12 +247,83 @@ export default function SalesVoucherWindow({
   // Search input query to search/filter products already sold in the current voucher
   const [soldItemsSearchQuery, setSoldItemsSearchQuery] = useState('');
 
-  const activeSaleIndex = sales.findIndex(s => s.id === selectedSaleId);
+  const navigableVouchers = useMemo(() => {
+    const map = new Map<string, { id: string; type: 'closed' | 'draft'; data: any }>();
+    
+    // Add closed sales
+    sales.forEach(sale => {
+      map.set(sale.id, {
+        id: sale.id,
+        type: 'closed',
+        data: sale
+      });
+    });
+
+    // Add/overwrite open drafts
+    openVouchers.forEach(v => {
+      map.set(v.id, {
+        id: v.id,
+        type: 'draft',
+        data: v
+      });
+    });
+
+    // Sort by ID
+    return Array.from(map.values()).sort((a, b) => {
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+  }, [sales, openVouchers]);
+
+  const activeNavIndex = useMemo(() => {
+    return navigableVouchers.findIndex(v => v.id === selectedSaleId);
+  }, [navigableVouchers, selectedSaleId]);
 
   const selectedSale = useMemo(() => {
     if (mode === 'create') return null;
     return sales.find(s => s.id === selectedSaleId) || sales[sales.length - 1] || null;
   }, [sales, selectedSaleId, mode]);
+
+  const selectVoucherById = (id: string, customNavList?: typeof navigableVouchers) => {
+    setSelectedSaleId(id);
+    const listToUse = customNavList || navigableVouchers;
+    const found = listToUse.find(v => v.id === id);
+    if (found) {
+      if (found.type === 'draft') {
+        const draft = found.data;
+        setNewSaleId(draft.id);
+        setNewDate(draft.date);
+        setNewTime(draft.time);
+        setNewClientName(draft.clientName);
+        setNewType(draft.type);
+        setVendeurName(draft.vendeurName);
+        setObservations(draft.observations);
+        setVersement(draft.versement);
+        setRemise(draft.remise);
+        setTvaRate(draft.tvaRate);
+        setDraftItems(draft.draftItems);
+        
+        setEditingVoucherId(draft.isEditingExisting ? draft.id : null);
+        
+        setSelectedItemIndex(draft.draftItems.length > 0 ? 0 : -1);
+        if (draft.draftItems.length > 0) {
+          setViewingItemCode(draft.draftItems[0].code);
+        } else {
+          setViewingItemCode('');
+        }
+        
+        setActiveDraftId(draft.id);
+        setMode('create');
+      } else {
+        // Closed sale
+        setActiveDraftId(null);
+        setMode('view');
+        setSelectedSaleId(found.id);
+        const sale = found.data;
+        setViewingItemCode(sale.items[0]?.code || '');
+        setSelectedItemIndex(sale.items.length > 0 ? 0 : -1);
+      }
+    }
+  };
 
   useEffect(() => {
     if (sales.length > 0 && !selectedSaleId && mode === 'view') {
@@ -215,36 +338,99 @@ export default function SalesVoucherWindow({
     }
   }, [clients, newClientName]);
 
+  // Keep active draft synchronized inside the openVouchers array
+  useEffect(() => {
+    if (activeDraftId) {
+      setOpenVouchers(prev => prev.map(v => {
+        if (v.id === activeDraftId) {
+          return {
+            ...v,
+            date: newDate,
+            time: newTime,
+            clientName: newClientName,
+            type: newType,
+            vendeurName: vendeurName,
+            observations: observations,
+            versement: versement,
+            remise: remise,
+            tvaRate: tvaRate,
+            draftItems: draftItems
+          };
+        }
+        return v;
+      }));
+    }
+  }, [
+    activeDraftId,
+    newDate,
+    newTime,
+    newClientName,
+    newType,
+    vendeurName,
+    observations,
+    versement,
+    remise,
+    tvaRate,
+    draftItems
+  ]);
+
+  const loadDraft = (draft: OpenVoucher) => {
+    setSelectedSaleId(draft.id);
+    setNewSaleId(draft.id);
+    setNewDate(draft.date);
+    setNewTime(draft.time);
+    setNewClientName(draft.clientName);
+    setNewType(draft.type);
+    setVendeurName(draft.vendeurName);
+    setObservations(draft.observations);
+    setVersement(draft.versement);
+    setRemise(draft.remise);
+    setTvaRate(draft.tvaRate);
+    setDraftItems(draft.draftItems);
+    
+    setEditingVoucherId(draft.isEditingExisting ? draft.id : null);
+    
+    setSelectedItemIndex(draft.draftItems.length > 0 ? 0 : -1);
+    if (draft.draftItems.length > 0) {
+      setViewingItemCode(draft.draftItems[0].code);
+    } else {
+      setViewingItemCode('');
+    }
+    
+    setActiveDraftId(draft.id);
+    setMode('create');
+  };
+
+  const removeDraft = (id: string) => {
+    setOpenVouchers(prev => prev.filter(v => v.id !== id));
+    if (activeDraftId === id) {
+      setActiveDraftId(null);
+      setMode('view');
+      if (sales.length > 0) {
+        setSelectedSaleId(sales[sales.length - 1].id);
+      }
+    }
+  };
+
   // Handle invoice index traversal using pager buttons
   const handleFirst = () => {
-    if (sales.length > 0) {
-      setSelectedSaleId(sales[0].id);
-      setViewingItemCode(sales[0].items[0]?.code || '');
-      setSelectedItemIndex(0);
+    if (navigableVouchers.length > 0) {
+      selectVoucherById(navigableVouchers[0].id);
     }
   };
   const handlePrev = () => {
-    if (activeSaleIndex > 0) {
-      const prevSale = sales[activeSaleIndex - 1];
-      setSelectedSaleId(prevSale.id);
-      setViewingItemCode(prevSale.items[0]?.code || '');
-      setSelectedItemIndex(0);
+    if (activeNavIndex > 0) {
+      selectVoucherById(navigableVouchers[activeNavIndex - 1].id);
     }
   };
   const handleNext = () => {
-    if (activeSaleIndex < sales.length - 1) {
-      const nextSale = sales[activeSaleIndex + 1];
-      setSelectedSaleId(nextSale.id);
-      setViewingItemCode(nextSale.items[0]?.code || '');
-      setSelectedItemIndex(0);
+    if (activeNavIndex !== -1 && activeNavIndex < navigableVouchers.length - 1) {
+      selectVoucherById(navigableVouchers[activeNavIndex + 1].id);
     }
   };
   const handleLast = () => {
-    if (sales.length > 0) {
-      const lastSale = sales[sales.length - 1];
-      setSelectedSaleId(lastSale.id);
-      setViewingItemCode(lastSale.items[0]?.code || '');
-      setSelectedItemIndex(0);
+    if (navigableVouchers.length > 0) {
+      selectVoucherById(navigableVouchers[navigableVouchers.length - 1].id);
     }
   };
 
@@ -271,10 +457,14 @@ export default function SalesVoucherWindow({
       : (selectedSale?.timbre || 0);
 
     const ttc = totalHT + tva + activeTimbre;
-    const oldBalance = selectedClientObj ? selectedClientObj.balance : 0;
+    const oldBalance = mode === 'create'
+      ? (selectedClientObj ? Number(selectedClientObj.balance) || 0 : 0)
+      : (selectedSale?.oldBalance ?? 0);
     
     const activeVersement = mode === 'create' ? versement : (selectedSale?.versement || 0);
-    const newBalance = oldBalance + (ttc - activeVersement);
+    const newBalance = mode === 'view'
+      ? (selectedSale?.newBalance ?? 0)
+      : oldBalance + (ttc - activeVersement);
 
     return {
       rawAmount: rawSum,
@@ -347,30 +537,48 @@ export default function SalesVoucherWindow({
   }, [currentItems, viewingItemCode]);
 
   const startCreateMode = () => {
+    // 1. Check if there is an empty draft
+    const hasEmptyDraft = openVouchers.some(v => v.draftItems.length === 0);
+    if (hasEmptyDraft || (mode === 'create' && draftItems.length === 0)) {
+      showRetroAlert(
+        "Impossible de créer un nouveau bon. Veuillez d'abord ajouter au moins un produit dans le bon actuel.",
+        "Saisie ventes"
+      );
+      return;
+    }
+
     // Sync starting products
     setLocalProducts(products);
 
-    const nextNum = (sales.length > 0)
-      ? String(Number(sales[sales.length - 1].id) + 1).padStart(4, '0')
-      : '0001';
+    // Calculate a unique next number avoiding collisions with both closed sales and open drafts
+    const allIds = [
+      ...sales.map(s => Number(s.id)),
+      ...openVouchers.map(v => Number(v.id))
+    ];
+    const maxId = allIds.length > 0 ? Math.max(...allIds) : 0;
+    const nextNum = String(maxId + 1).padStart(4, '0');
 
-    setNewSaleId(nextNum);
     const d = new Date();
-    setNewDate(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
-    setNewTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`);
+    const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const formattedTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
-    setNewClientName('Anonyme');
-    setNewType('VENTE');
-    setVendeurName('<Aucun>');
-    setObservations('');
-    setVersement(0);
-    setRemise(0);
-    setTvaRate(0);
-    setDraftItems([]);
-    setViewingItemCode('');
-    setSelectedItemIndex(0);
-    setEditingVoucherId(null);
-    setMode('create');
+    const newDraft: OpenVoucher = {
+      id: nextNum,
+      isEditingExisting: false,
+      date: formattedDate,
+      time: formattedTime,
+      clientName: 'Anonyme',
+      type: 'VENTE',
+      vendeurName: '<Aucun>',
+      observations: '',
+      versement: 0,
+      remise: 0,
+      tvaRate: 0,
+      draftItems: []
+    };
+
+    setOpenVouchers(prev => [...prev, newDraft]);
+    loadDraft(newDraft);
   };
 
   const handleDeleteSelectedVoucher = () => {
@@ -408,41 +616,52 @@ export default function SalesVoucherWindow({
       return;
     }
 
-    // Revert this sale's stock impacts temporarily for the editing workspace
-    const revertedProducts = products.map(p => {
-      const item = selectedSale.items.find(i => i.code === p.code);
-      if (item) {
-        const revStock = p.stock + item.qty;
-        return {
-          ...p,
-          stock: revStock,
-          stockColis: Math.ceil(revStock / 12)
-        };
-      }
-      return p;
-    });
-
-    setLocalProducts(revertedProducts);
-    setEditingVoucherId(selectedSale.id);
-    setNewSaleId(selectedSale.id);
-    setNewDate(selectedSale.date);
-    setNewTime(selectedSale.time);
-    setNewClientName(selectedSale.client);
-    setNewType(selectedSale.type || 'VENTE');
-    setDraftItems([...selectedSale.items]);
-    setVersement(selectedSale.versement || 0);
-    setRemise(selectedSale.remise || 0);
-    setTvaRate(selectedSale.tva ? 19 : 0);
-    setObservations(selectedSale.observations || '');
-    setVendeurName(selectedSale.vendeur || '<Aucun>');
-
-    setSelectedItemIndex(selectedSale.items.length > 0 ? 0 : -1);
-    if (selectedSale.items.length > 0) {
-      setViewingItemCode(selectedSale.items[0].code);
-    } else {
-      setViewingItemCode('');
+    // Check if this voucher is already open in our drafts
+    const existingDraft = openVouchers.find(v => v.id === selectedSale.id && v.isEditingExisting);
+    if (existingDraft) {
+      loadDraft(existingDraft);
+      return;
     }
-    setMode('create');
+
+    showRetroConfirm(
+      "Voulez-vous vraiment modifier ce bon de livraison ?",
+      () => {
+        // Revert this sale's stock impacts temporarily for the editing workspace
+        const revertedProducts = products.map(p => {
+          const item = selectedSale.items.find(i => i.code === p.code);
+          if (item) {
+            const revStock = p.stock + item.qty;
+            return {
+              ...p,
+              stock: revStock,
+              stockColis: Math.ceil(revStock / 12)
+            };
+          }
+          return p;
+        });
+
+        setLocalProducts(revertedProducts);
+
+        const newDraft: OpenVoucher = {
+          id: selectedSale.id,
+          isEditingExisting: true,
+          date: selectedSale.date,
+          time: selectedSale.time,
+          clientName: selectedSale.client,
+          type: selectedSale.type || 'VENTE',
+          vendeurName: selectedSale.vendeur || '<Aucun>',
+          observations: selectedSale.observations || '',
+          versement: selectedSale.versement || 0,
+          remise: selectedSale.remise || 0,
+          tvaRate: selectedSale.tva ? 19 : 0,
+          draftItems: [...selectedSale.items]
+        };
+
+        setOpenVouchers(prev => [...prev, newDraft]);
+        loadDraft(newDraft);
+      },
+      "Messages"
+    );
   };
 
   const handleCloseAndSaveVoucher = () => {
@@ -464,8 +683,8 @@ export default function SalesVoucherWindow({
     setIsPaymentDialogOpen(true);
   };
 
-  const handleConfirmPaymentAndSaveVoucher = (customVersement?: number) => {
-    const finalVersement = customVersement !== undefined
+  const handleConfirmPaymentAndSaveVoucher = (customVersement?: number | unknown) => {
+    const finalVersement = (typeof customVersement === 'number')
       ? customVersement
       : (paymentMode === 'A_TERME' ? 0 : Number(paymentVersement) || 0);
     
@@ -522,12 +741,20 @@ export default function SalesVoucherWindow({
     if (editingVoucherId) {
       onUpdateSale(editingVoucherId, savedVoucher);
       alert(`Bon de Livraison N° ${savedVoucher.id} a été modifié avec succès !`);
+      
+      // Remove from drafts
+      setOpenVouchers(prev => prev.filter(v => v.id !== editingVoucherId));
+      setActiveDraftId(null);
       setSelectedSaleId(savedVoucher.id);
       setEditingVoucherId(null);
       setMode('view');
     } else {
       onAddSale(savedVoucher);
       alert(`Bon de Livraison N° ${savedVoucher.id} a été enregistré !`);
+      
+      // Remove from drafts
+      setOpenVouchers(prev => prev.filter(v => v.id !== newSaleId));
+      setActiveDraftId(null);
       setSelectedSaleId(savedVoucher.id);
       setEditingVoucherId(null);
       setMode('view');
@@ -541,23 +768,64 @@ export default function SalesVoucherWindow({
   const handleFermerLeBon = () => {
     if (mode === 'create') {
       if (draftItems.length === 0) {
+        const idToDelete = editingVoucherId || newSaleId;
+        
         if (editingVoucherId) {
-          // This is an edited voucher that has been cleared of all products. Delete it!
           onDeleteSale(editingVoucherId);
-          setMode('view');
-          setEditingVoucherId(null);
-          // Reset selection in the current component view
-          const remainingSales = sales.filter(s => s.id !== editingVoucherId);
-          if (remainingSales.length > 0) {
-            setSelectedSaleId(remainingSales[remainingSales.length - 1].id);
-          } else {
-            setSelectedSaleId('');
+        }
+
+        // Build remaining navigable list synchronously
+        const map = new Map<string, { id: string; type: 'closed' | 'draft'; data: any }>();
+        
+        // Add closed sales, filtering out idToDelete if it is being deleted
+        sales.forEach(sale => {
+          if (sale.id !== idToDelete) {
+            map.set(sale.id, {
+              id: sale.id,
+              type: 'closed',
+              data: sale
+            });
           }
-          setNewClientName('Anonyme');
-          alert("Le bon de livraison a été supprimé car tous ses produits ont été retirés.");
+        });
+
+        // Add open drafts, filtering out idToDelete
+        openVouchers.forEach(v => {
+          if (v.id !== idToDelete) {
+            map.set(v.id, {
+              id: v.id,
+              type: 'draft',
+              data: v
+            });
+          }
+        });
+
+        // Sort by ID
+        const remainingNavigable = Array.from(map.values()).sort((a, b) => {
+          return a.id.localeCompare(b.id, undefined, { numeric: true });
+        });
+
+        // Update openVouchers state
+        setOpenVouchers(prev => prev.filter(v => v.id !== idToDelete));
+        setActiveDraftId(null);
+        setEditingVoucherId(null);
+
+        if (remainingNavigable.length > 0) {
+          // Find old index in the original list of navigableVouchers
+          const oldIndex = navigableVouchers.findIndex(v => v.id === idToDelete);
+          const targetIndex = Math.min(Math.max(0, oldIndex - 1), remainingNavigable.length - 1);
+          const fallbackId = remainingNavigable[targetIndex >= 0 ? targetIndex : 0].id;
+          selectVoucherById(fallbackId, remainingNavigable);
         } else {
-          // Normal cancel create for a brand new empty bon
-          handleCancelCreate();
+          // Clear everything
+          setSelectedSaleId('');
+          setNewClientName('Anonyme');
+          setNewSaleId('');
+          setDraftItems([]);
+          setMode('view');
+        }
+
+        if (editingVoucherId) {
+          alert("Le bon de livraison a été supprimé car tous ses produits ont été retirés.");
         }
       } else {
         handleCloseAndSaveVoucher();
@@ -589,7 +857,7 @@ export default function SalesVoucherWindow({
       if (e.key === 'F7') {
         e.preventDefault();
         setIsProductChooserOpen(true);
-      } else if (e.key === 'F1' && mode === 'view') {
+      } else if (e.key === 'F1') {
         e.preventDefault();
         startCreateMode();
       } else if (e.key === 'F5' && mode === 'create') {
@@ -605,7 +873,7 @@ export default function SalesVoucherWindow({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, draftItems, newSaleId, newDate, newTime, newClientName, newType, versement, remise, tvaRate, products, isPaymentDialogOpen, paymentVersement, paymentMode]);
+  }, [mode, draftItems, newSaleId, newDate, newTime, newClientName, newType, versement, remise, tvaRate, products, isPaymentDialogOpen, paymentVersement, paymentMode, openVouchers]);
 
   const handleInsertProduct = () => {
     if (mode !== 'create') {
@@ -695,13 +963,7 @@ export default function SalesVoucherWindow({
     handleCloseAndSaveVoucher();
   };
 
-  const handleCancelCreate = () => {
-    setMode('view');
-    setEditingVoucherId(null);
-    if (sales.length > 0) {
-      setSelectedSaleId(sales[sales.length - 1].id);
-    }
-  };
+
 
   // Filtered products for search insertion
   const filteredProducts = useMemo(() => {
@@ -747,7 +1009,7 @@ export default function SalesVoucherWindow({
           <div className="flex bg-slate-105 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/20 gap-1 dev-pager-group shadow-inner">
             <button
               onClick={handleFirst}
-              disabled={mode === 'create' || sales.length === 0}
+              disabled={navigableVouchers.length <= 1 || activeNavIndex <= 0}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Premier Bon"
             >
@@ -756,7 +1018,7 @@ export default function SalesVoucherWindow({
             </button>
             <button
               onClick={handlePrev}
-              disabled={mode === 'create' || activeSaleIndex <= 0}
+              disabled={navigableVouchers.length <= 1 || activeNavIndex <= 0}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Bon Précédent"
             >
@@ -765,7 +1027,7 @@ export default function SalesVoucherWindow({
             </button>
             <button
               onClick={handleNext}
-              disabled={mode === 'create' || activeSaleIndex >= sales.length - 1}
+              disabled={navigableVouchers.length <= 1 || activeNavIndex === -1 || activeNavIndex >= navigableVouchers.length - 1}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Bon Suivant"
             >
@@ -774,7 +1036,7 @@ export default function SalesVoucherWindow({
             </button>
             <button
               onClick={handleLast}
-              disabled={mode === 'create' || sales.length === 0}
+              disabled={navigableVouchers.length <= 1 || activeNavIndex === -1 || activeNavIndex >= navigableVouchers.length - 1}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Dernier Bon"
             >
@@ -789,8 +1051,7 @@ export default function SalesVoucherWindow({
           <div className="flex items-center gap-1.5 flex-nowrap">
             <button
               onClick={startCreateMode}
-              disabled={mode === 'create'}
-              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:to-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-transform duration-100 active:scale-95 disabled:opacity-40"
+              className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:to-teal-700 text-white rounded-xl shadow-md cursor-pointer transition-transform duration-100 active:scale-95"
             >
               <span className="text-base">📄</span>
               <div className="flex flex-col text-left">
@@ -817,21 +1078,7 @@ export default function SalesVoucherWindow({
               </div>
             </button>
 
-            {mode === 'create' && (
-              <>
-                <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
-                <button
-                  onClick={handleCancelCreate}
-                  className="px-3.5 h-10 flex items-center justify-center gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl shadow-sm cursor-pointer transition-transform duration-100 active:scale-95"
-                >
-                  <span className="text-base">✕</span>
-                  <div className="flex flex-col text-left">
-                    <span style={{ fontSize: '11px', fontFamily: 'Arial' }} className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Annuler</span>
-                    <span className="text-[8px] font-bold text-rose-100 tracking-wider mt-0.5">[ Échap ]</span>
-                  </div>
-                </button>
-              </>
-            )}
+
 
             <div className="h-7 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1 shrink-0" />
 
@@ -882,11 +1129,14 @@ export default function SalesVoucherWindow({
         </div>
       </div>
 
-      {/* 2. Client and Document Metadatas panel */}
-      <div 
-        style={{ height: '128px', width: '100%' }}
-        className="mx-0.5 mt-0.5 mb-2 p-3 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl flex flex-nowrap gap-3.5 items-center justify-start text-slate-900 dark:text-slate-100 shadow-xs relative overflow-x-auto no-scrollbar shrink-0"
-      >
+      {/* Main Workspace Area with closed status styles */}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+
+        {/* 2. Client and Document Metadatas panel */}
+        <div 
+          style={{ height: '128px', width: '100%' }}
+          className="mx-0.5 mt-0.5 mb-2 p-3 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl flex flex-nowrap gap-3.5 items-center justify-start text-slate-900 dark:text-slate-100 shadow-xs relative overflow-x-auto no-scrollbar shrink-0"
+        >
         
         {/* Left container: Client + metadata on Row 1, and facturation auxiliary cards raised to Row 2 */}
         <div className="flex flex-col gap-1.5 shrink-0 select-text justify-center">
@@ -1115,7 +1365,7 @@ export default function SalesVoucherWindow({
 
       {/* 3. Middle Code-Produit Input / Control Line - Modern Material 3 */}
       <div 
-        className="mx-0.5 p-2 bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex items-center justify-start gap-3 select-none shrink-0 overflow-hidden"
+        className="mx-0.5 p-2 bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex items-center justify-start gap-3 select-none shrink-0 overflow-hidden transition-all duration-300"
       >
         {/* Search input wrapped in a tight flex layout */}
         <div className="relative flex items-center shrink-0">
@@ -1171,8 +1421,9 @@ export default function SalesVoucherWindow({
           <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
             <button
               onClick={handleInsertProduct}
+              disabled={mode === 'view'}
               type="button"
-              className="h-8.5 px-3 bg-gradient-to-br from-sky-500 to-sky-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0 animate-pulse-once"
+              className="h-8.5 px-3 bg-gradient-to-br from-sky-500 to-sky-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0 animate-pulse-once disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>➕</span> Insérer [F7]
             </button>
@@ -1181,8 +1432,9 @@ export default function SalesVoucherWindow({
 
             <button
               onClick={handleEditPriceOrQty}
+              disabled={mode === 'view'}
               type="button"
-              className="h-8.5 px-3 bg-gradient-to-br from-amber-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0"
+              className="h-8.5 px-3 bg-gradient-to-br from-amber-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>✏️</span> Modifier [F8]
             </button>
@@ -1191,8 +1443,9 @@ export default function SalesVoucherWindow({
 
             <button
               onClick={handleDeleteItem}
+              disabled={mode === 'view'}
               type="button"
-              className="h-8.5 px-3 bg-gradient-to-br from-rose-500 to-rose-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0"
+              className="h-8.5 px-3 bg-gradient-to-br from-rose-500 to-rose-600 hover:opacity-95 text-white rounded-xl text-[10px] font-black tracking-wide flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-100 cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>➖</span> Supprimer [Supp]
             </button>
@@ -1237,7 +1490,11 @@ export default function SalesVoucherWindow({
       <div className="grid grid-cols-12 gap-3.5 mx-0.5 min-h-[160px] flex-1 mt-1">
         
         {/* Main Products Grid Table */}
-        <div className="col-span-8 flex flex-col border border-slate-200/50 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-inner rounded-2xl overflow-hidden">
+        <div className={`col-span-8 flex flex-col border border-slate-200/50 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-inner rounded-2xl overflow-hidden transition-all duration-300 ${
+          mode === 'view' 
+            ? 'grayscale opacity-50 dark:opacity-30 bg-slate-200/30 dark:bg-black/20 pointer-events-none' 
+            : ''
+        }`}>
           <div className="flex-1 overflow-auto">
             <table className="w-full text-left font-sans text-xs border-collapse">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-extrabold select-none border-b border-slate-200/60 dark:border-slate-800/80 z-10">
@@ -1405,6 +1662,8 @@ export default function SalesVoucherWindow({
         </div>
       </div>
 
+      </div>
+
       {/* Observations Dialog Modal */}
       {isObsModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[1001] p-4 text-xs">
@@ -1449,6 +1708,13 @@ export default function SalesVoucherWindow({
                   onClick={() => {
                     setObservations(tempObs);
                     setIsObsModalOpen(false);
+                    if (mode === 'view' && selectedSale) {
+                      const updatedSale = {
+                        ...selectedSale,
+                        observations: tempObs
+                      };
+                      onUpdateSale(selectedSale.id, updatedSale);
+                    }
                   }}
                   className="px-5 py-2 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:opacity-95 text-white rounded-xl font-black shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-[11px]"
                 >
@@ -1716,7 +1982,7 @@ export default function SalesVoucherWindow({
 
               <button
                 type="button"
-                onClick={handleConfirmPaymentAndSaveVoucher}
+                onClick={() => handleConfirmPaymentAndSaveVoucher()}
                 className="px-6 h-9 text-xs font-black bg-m3-primary text-white rounded-full shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
               >
                 ✓ Enregistrer Bon (F5)
@@ -2188,6 +2454,70 @@ export default function SalesVoucherWindow({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* -------------------- CUSTOM RETRO CONFIRM / ALERT DIALOG BOX -------------------- */}
+      {retroDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-[9999] select-none">
+          <div className="w-[420px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] p-0.5 shadow-2xl">
+            
+            {/* Dialog Blue Title Bar */}
+            <div className="bg-gradient-to-r from-[#0a246a] to-[#a6caf0] text-white px-2 py-1.5 flex items-center justify-between font-sans font-bold text-xs select-none">
+              <span className="flex items-center gap-1.5">
+                <span className="text-sm">💬</span>
+                <span className="tracking-wide text-[11px] font-sans font-bold text-white uppercase">{retroDialog.title}</span>
+              </span>
+              <button
+                onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
+                className="w-4.5 h-4.5 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-b-white active:border-r-white flex items-center justify-center font-bold text-[10px] cursor-pointer focus:outline-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Dialog Contents */}
+            <div className="p-5 flex gap-4 text-xs font-bold text-slate-800 items-center bg-gray-100/90 m-1.5 border border-t-[#808080] border-b-[#ffffff] border-l-[#808080] border-r-[#ffffff]">
+              {/* Icon */}
+              <div className="text-4xl select-none flex-shrink-0">
+                {retroDialog.type === 'confirm' ? '❓' : '⚠️'}
+              </div>
+              <div className="flex-1 whitespace-pre-wrap font-sans text-[11px] font-bold text-slate-900 leading-normal select-text selection:bg-[#000080] selection:text-white">
+                {retroDialog.message}
+              </div>
+            </div>
+
+            {/* Dialog Action Buttons */}
+            <div className="p-2 pb-3 flex justify-center gap-4 bg-[#d4d0c8]">
+              {retroDialog.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={() => {
+                      if (retroDialog.onConfirm) retroDialog.onConfirm();
+                      setRetroDialog(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="px-6 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1.5 justify-center min-w-[72px]"
+                  >
+                    <span>✔️</span> Oui
+                  </button>
+                  <button
+                    onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
+                    className="px-6 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1.5 justify-center min-w-[72px]"
+                  >
+                    <span>❌</span> Non
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
+                  className="px-7 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1 justify-center min-w-[72px]"
+                >
+                  OK
+                </button>
+              )}
+            </div>
+
+          </div>
         </div>
       )}
 

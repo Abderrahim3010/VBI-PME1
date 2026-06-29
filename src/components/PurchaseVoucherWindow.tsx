@@ -1435,30 +1435,7 @@ export default function PurchaseVoucherWindow({
             </div>
           </div>
 
-          {/* Row 2: Fournisseur / Tiers (Full width) */}
-          <div className="flex flex-col gap-1 bg-indigo-50/20 dark:bg-indigo-950/10 p-2 rounded-xl border border-indigo-150/10">
-            <span className="font-extrabold text-[9px] uppercase text-indigo-505 dark:text-indigo-400 tracking-wider">Fournisseur / Tiers</span>
-            {mode === 'create' ? (
-              <select
-                value={newSupplierName}
-                onChange={(e) => setNewSupplierName(e.target.value)}
-                className="h-7.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 text-[11px] font-bold text-indigo-950 dark:text-indigo-300 outline-none focus:border-indigo-300 cursor-pointer"
-              >
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.name}>{s.name}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                readOnly
-                value={selectedVoucher?.supplier || ''}
-                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 outline-none text-[11px] font-bold text-indigo-950 dark:text-indigo-300 truncate"
-              />
-            )}
-          </div>
 
-          <hr className="border-slate-100 dark:border-slate-900 my-0.5 shrink-0" />
 
           {/* Row 3: Ancien solde & Nouveau solde */}
           <div className="grid grid-cols-2 gap-2">
@@ -1537,7 +1514,7 @@ export default function PurchaseVoucherWindow({
       </div>
 
       {/* BOTTOM ACTION BUTTONS - MODERNIZED AND COHESIVE */}
-      <div className="flex flex-nowrap items-center justify-between bg-white dark:bg-slate-900 p-2 border border-slate-200/50 dark:border-slate-800/85 rounded-2xl gap-2 shrink-0 select-none shadow-xs overflow-x-auto no-scrollbar">
+      <div className="flex flex-nowrap items-center justify-start bg-white dark:bg-slate-900 p-2 border border-slate-200/50 dark:border-slate-800/85 rounded-2xl gap-2.5 shrink-0 select-none shadow-xs overflow-x-auto no-scrollbar">
         
         <div className="flex items-center gap-2 shrink-0">
           {/* Bottom Table Pager Navigator */}
@@ -1580,6 +1557,8 @@ export default function PurchaseVoucherWindow({
             </button>
           </div>
         </div>
+
+        <div className="h-7 w-[1px] bg-slate-200 dark:bg-slate-800 shrink-0 mx-1" />
 
         {/* Action buttons list */}
         <div className="flex gap-1.5 flex-nowrap shrink-0 overflow-x-auto no-scrollbar">
@@ -1812,7 +1791,7 @@ export default function PurchaseVoucherWindow({
           </div>
 
           {/* NET EN DINARS (TTC À PAYER) replaces previous styling to match sales */}
-          <div className="bg-slate-950 dark:bg-black p-2 rounded-xl text-center flex flex-col gap-0 shadow-md border border-slate-850/50 mt-auto shrink-0">
+          <div className="bg-slate-950 dark:bg-black p-2 rounded-xl text-center flex flex-col gap-0 shadow-md border border-slate-850/50 mt-2 shrink-0">
             <span className="text-[8px] font-black text-amber-500 tracking-wider font-sans uppercase leading-none">NET EN DINARS (ACHAT)</span>
             <span className="text-base font-mono font-black text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.3)] mt-0.5">
               {(displayMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} DA

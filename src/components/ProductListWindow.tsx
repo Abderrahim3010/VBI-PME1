@@ -246,8 +246,8 @@ export default function ProductListWindow({
     setFormDate(currentISO);
 
     // Set prices with correct fallbacks
-    setFormPrixAchat(selectedProduct.prixAchat !== undefined ? selectedProduct.prixAchat : selectedProduct.prixVente1);
-    setFormPrixDeRevient(selectedProduct.prixDeRevient !== undefined ? selectedProduct.prixDeRevient : selectedProduct.prixVente2);
+    setFormPrixAchat(selectedProduct.prixAchat !== undefined ? selectedProduct.prixAchat : (selectedProduct.prixDeRevient ?? 0));
+    setFormPrixDeRevient(selectedProduct.prixDeRevient !== undefined ? selectedProduct.prixDeRevient : (selectedProduct.prixAchat ?? 0));
     setFormPrixVente1(selectedProduct.prixVente1);
     setFormPrixVente2(selectedProduct.prixVente2);
     setFormPrixVente3(selectedProduct.prixVente3);
@@ -410,9 +410,9 @@ export default function ProductListWindow({
               const reqSelected = index === selectedIndex;
               
               // Map pricing properties dynamically
-              const displayPrixAchat = (p.prixAchat ?? p.prixVente1) ?? 0;
-              const displayPrixDeRevient = (p.prixDeRevient ?? p.prixVente2) ?? 0;
-              const displayPrixVente = (p.prixVente3 ?? p.prixVente1) ?? 0;
+              const displayPrixAchat = p.prixAchat ?? p.prixDeRevient ?? 0;
+              const displayPrixDeRevient = p.prixDeRevient ?? p.prixAchat ?? 0;
+              const displayPrixVente = p.prixVente1 ?? 0;
 
               return (
                 <tr

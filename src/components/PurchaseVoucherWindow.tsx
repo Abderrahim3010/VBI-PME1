@@ -14,6 +14,7 @@ interface PurchaseVoucherWindowProps {
   onAddSupplier?: (supplier: Supplier) => void;
   createdFamilles?: string[];
   onCreatedFamillesChange?: (familles: string[] | ((prev: string[]) => string[])) => void;
+  isOpen?: boolean;
 }
 
 export default function PurchaseVoucherWindow({
@@ -27,7 +28,8 @@ export default function PurchaseVoucherWindow({
   onProductsUpdate,
   onAddSupplier,
   createdFamilles: propCreatedFamilles,
-  onCreatedFamillesChange
+  onCreatedFamillesChange,
+  isOpen = false
 }: PurchaseVoucherWindowProps) {
   // Navigation / Selection of historical vouchers
   const [selectedVoucherId, setSelectedVoucherId] = useState<string>(
@@ -72,6 +74,51 @@ export default function PurchaseVoucherWindow({
   
   // Voucher editing state tracker
   const [editingVoucherId, setEditingVoucherId] = useState<string | null>(null);
+
+  // List of currently open drafts/bons (can have multiple active drafts open at once)
+  const [openDrafts, setOpenDrafts] = useState<any[]>(() => {
+    return getStorageJson('purchase_open_drafts', []);
+  });
+
+  // Keep open drafts persistent in local DB
+  useEffect(() => {
+    saveJson('purchase_open_drafts', openDrafts);
+  }, [openDrafts]);
+
+  // Keep active draft synchronized inside the openDrafts array
+  useEffect(() => {
+    if (mode === 'create' && newVoucherId) {
+      setOpenDrafts(prev => {
+        const exists = prev.some(d => d.id === newVoucherId);
+        if (!exists) {
+          // If for some reason the active draft is not in the list, we append it
+          return [...prev, {
+            id: newVoucherId,
+            date: newDate,
+            time: newTime,
+            supplier: newSupplierName,
+            draftItems,
+            versement,
+            isEditingExisting: !!editingVoucherId
+          }];
+        }
+        return prev.map(draft => {
+          if (draft.id === newVoucherId) {
+            return {
+              ...draft,
+              date: newDate,
+              time: newTime,
+              supplier: newSupplierName,
+              draftItems,
+              versement,
+              isEditingExisting: !!editingVoucherId
+            };
+          }
+          return draft;
+        });
+      });
+    }
+  }, [mode, newVoucherId, newDate, newTime, newSupplierName, draftItems, versement, editingVoucherId]);
 
   // Dynamic list of Families created manually by user, persisted through the local DB adapter as fallback
   const [localCreatedFamilles, setLocalCreatedFamilles] = useState<string[]>(() => {
@@ -297,11 +344,37 @@ export default function PurchaseVoucherWindow({
   // Local transaction-based product list to avoid mutating global products catalog on cancel
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
 
-  // Synchronize local products when in view mode
+  // Synchronize local products with props dynamically while preserving local draft state adjustments
   useEffect(() => {
-    if (mode === 'view') {
-      setLocalProducts(products);
-    }
+    setLocalProducts(prev => {
+      const prevMap = new Map<string, Product>(prev.map(p => [p.code, p]));
+      
+      // Update catalog products
+      const updatedCatalog = products.map(p => {
+        const prevProd = prevMap.get(p.code);
+        if (prevProd && mode === 'create') {
+          return {
+            ...p,
+            stock: prevProd.stock,
+            stockColis: prevProd.stockColis,
+            prixDeRevient: prevProd.prixDeRevient,
+            prixAchat: prevProd.prixAchat,
+            prixVente1: prevProd.prixVente1,
+            prixVente2: prevProd.prixVente2,
+            prixVente3: prevProd.prixVente3,
+            category: prevProd.category,
+            designation: prevProd.designation
+          };
+        }
+        return p;
+      });
+
+      // Also preserve any products that exist ONLY in the previous draft localProducts (draft-only products reconstructed on draft load)
+      const catalogCodes = new Set(products.map(p => p.code));
+      const draftOnly = prev.filter(p => !catalogCodes.has(p.code));
+
+      return [...updatedCatalog, ...draftOnly];
+    });
   }, [products, mode]);
 
   // CUSTOM RETRO DIALOG BOX STATE (to completely bypass blocked iframe alert/confirm modals)
@@ -364,6 +437,9 @@ export default function PurchaseVoucherWindow({
 
   // Calculates dynamically weighted average cost price on the fly for UI
   const calculatedNouveauPrixRevient = useMemo(() => {
+    if (dialogMode === 'edit_existing') {
+      return prodPrixDeRevient;
+    }
     const qtyVal = Number(prodQtyCalculated) || 0;
     const buyPriceVal = Number(prodPrixAchat) || 0;
     const existingStock = prodStockEnStock || 0;
@@ -376,7 +452,7 @@ export default function PurchaseVoucherWindow({
       return existingCost;
     }
     return Math.round(((existingStock * existingCost) + (qtyVal * buyPriceVal)) / (existingStock + qtyVal));
-  }, [prodQtyCalculated, prodPrixAchat, prodStockEnStock, prodPrixDeRevient]);
+  }, [dialogMode, prodQtyCalculated, prodPrixAchat, prodStockEnStock, prodPrixDeRevient]);
 
   // Filters the list of catalog items dynamically for insert dialog
   const filteredProductsToInsert = useMemo(() => {
@@ -389,8 +465,38 @@ export default function PurchaseVoucherWindow({
     );
   }, [localProducts, insertSearchQuery]);
 
-  // Set active voucher index for pager buttons
-  const activeVoucherIndex = purchases.findIndex(v => v.id === selectedVoucherId);
+  const navigableVouchers = useMemo(() => {
+    const map = new Map<string, { id: string; type: 'closed' | 'draft'; data: any }>();
+    
+    // Add closed purchases
+    purchases.forEach(p => {
+      map.set(p.id, {
+        id: p.id,
+        type: 'closed',
+        data: p
+      });
+    });
+
+    // Add open drafts
+    openDrafts.forEach(d => {
+      map.set(d.id, {
+        id: d.id,
+        type: 'draft',
+        data: d
+      });
+    });
+
+    // Sort by ID (numerical sort)
+    return Array.from(map.values()).sort((a, b) => {
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+  }, [purchases, openDrafts]);
+
+  // Set active voucher ID
+  const activeId = mode === 'create' ? newVoucherId : selectedVoucherId;
+
+  // Set active voucher index for pager buttons based on the unified navigableVouchers list
+  const activeVoucherIndex = navigableVouchers.findIndex(v => v.id === activeId);
 
   const selectedVoucher = useMemo(() => {
     if (mode === 'create') return null;
@@ -411,18 +517,94 @@ export default function PurchaseVoucherWindow({
     }
   }, [purchases, selectedVoucherId, mode]);
 
+  // Helper to load any draft or active edited voucher
+  const loadDraft = (draft: any) => {
+    setNewVoucherId(draft.id);
+    setNewDate(draft.date);
+    setNewTime(draft.time);
+    setNewSupplierName(draft.supplier);
+    setDraftItems(draft.draftItems || []);
+    setVersement(draft.versement || 0);
+    setEditingVoucherId(draft.isEditingExisting ? draft.id : null);
+    
+    let baseProductsList = [...products];
+    if (draft.isEditingExisting) {
+      // Revert stock/cost impacts of original closed voucher for the editing workspace
+      const origVoucher = purchases.find(v => v.id === draft.id);
+      if (origVoucher) {
+        baseProductsList = products.map(p => {
+          const item = origVoucher.items.find(i => i.code === p.code);
+          if (item) {
+            const revStock = Math.max(0, p.stock - item.qty);
+            let revCost = p.prixDeRevient;
+            if (revStock > 0 && p.prixDeRevient !== undefined) {
+              revCost = Math.round((p.prixDeRevient * p.stock - item.qty * item.price) / revStock);
+            }
+            return {
+              ...p,
+              stock: revStock,
+              stockColis: Math.ceil(revStock / 12),
+              prixDeRevient: revCost
+            };
+          }
+          return p;
+        });
+      }
+    }
+
+    // Resilience: ensure any item inside draftItems that is NOT in the catalog is reconstructed locally
+    const draftItemsList = draft.draftItems || [];
+    const mergedProducts = [...baseProductsList];
+    draftItemsList.forEach((item: any) => {
+      const exists = mergedProducts.some(p => p.code === item.code);
+      if (!exists) {
+        mergedProducts.push({
+          code: item.code,
+          designation: item.designation,
+          prixVente1: item.prixVente1 || Math.round(item.price * 1.3),
+          prixVente2: item.prixVente2 || Math.round(item.price * 1.3),
+          prixVente3: item.prixVente3 || Math.round(item.price * 1.3),
+          stock: 0,
+          stockColis: 0,
+          category: item.category || '',
+          prixDeRevient: item.price,
+          prixAchat: item.price
+        });
+      }
+    });
+
+    setLocalProducts(mergedProducts);
+    
+    setBarcodeInput('');
+    setSelectedDraftIdx((draft.draftItems || []).length > 0 ? 0 : -1);
+    setIsSupplierSelectOpen(false);
+    setMode('create');
+  };
+
+  // Helper to load any voucher (closed or draft)
+  const loadVoucherObj = (nav: { type: 'closed' | 'draft'; data: any }) => {
+    if (nav.type === 'draft') {
+      loadDraft(nav.data);
+    } else {
+      const v = nav.data;
+      setSelectedVoucherId(v.id);
+      setEditingVoucherId(null);
+      setMode('view');
+    }
+  };
+
   // Handle pagination between historical voucher records
   const handleFirst = () => {
-    if (purchases.length > 0) setSelectedVoucherId(purchases[0].id);
+    if (navigableVouchers.length > 0) loadVoucherObj(navigableVouchers[0]);
   };
   const handlePrev = () => {
-    if (activeVoucherIndex > 0) setSelectedVoucherId(purchases[activeVoucherIndex - 1].id);
+    if (activeVoucherIndex > 0) loadVoucherObj(navigableVouchers[activeVoucherIndex - 1]);
   };
   const handleNext = () => {
-    if (activeVoucherIndex < purchases.length - 1) setSelectedVoucherId(purchases[activeVoucherIndex + 1].id);
+    if (activeVoucherIndex < navigableVouchers.length - 1) loadVoucherObj(navigableVouchers[activeVoucherIndex + 1]);
   };
   const handleLast = () => {
-    if (purchases.length > 0) setSelectedVoucherId(purchases[purchases.length - 1].id);
+    if (navigableVouchers.length > 0) loadVoucherObj(navigableVouchers[navigableVouchers.length - 1]);
   };
 
   // Find supplier object for calculations
@@ -512,19 +694,24 @@ export default function PurchaseVoucherWindow({
       finalSupplierName = existingSupplierSelected;
     }
 
-    // Now proceed with normal voucher initialization
-    const nextNum = (purchases.length > 0) 
-      ? String(Number(purchases[purchases.length - 1].id) + 1).padStart(5, '0')
-      : '02104';
+    // Calculate unique next number avoiding collisions with both closed purchases and open drafts
+    const allIds = [
+      ...purchases.map(p => Number(p.id)),
+      ...openDrafts.map(d => Number(d.id))
+    ].filter(id => !isNaN(id));
+    const maxId = allIds.length > 0 ? Math.max(...allIds) : 0;
+    const nextNum = String(maxId + 1).padStart(5, '0');
     
     setLocalProducts([...products]);
     setNewVoucherId(nextNum);
     setEditingVoucherId(null); // Reset when creating new
     
     const d = new Date();
-    setNewDate(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
-    setNewTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`);
+    const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const formattedTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
     
+    setNewDate(formattedDate);
+    setNewTime(formattedTime);
     setNewSupplierName(finalSupplierName);
     setDraftItems([]);
     setVersement(0);
@@ -532,6 +719,16 @@ export default function PurchaseVoucherWindow({
     setSelectedDraftIdx(-1);
     setIsSupplierSelectOpen(false);
     setMode('create');
+
+    const newDraft = {
+      id: nextNum,
+      date: formattedDate,
+      time: formattedTime,
+      supplier: finalSupplierName,
+      draftItems: [],
+      versement: 0
+    };
+    setOpenDrafts(prev => [...prev, newDraft]);
   };
 
   // Modify an existing closed voucher
@@ -541,37 +738,26 @@ export default function PurchaseVoucherWindow({
       return;
     }
 
-    // De-integrate this voucher's quantities and prices from the catalog products to revert to original state before editing
-    const revertedProducts = products.map(p => {
-      const item = selectedVoucher.items.find(i => i.code === p.code);
-      if (item) {
-        const revStock = Math.max(0, p.stock - item.qty);
-        let revCost = p.prixDeRevient;
-        if (revStock > 0 && p.prixDeRevient !== undefined) {
-          revCost = Math.round((p.prixDeRevient * p.stock - item.qty * item.price) / revStock);
-        }
-        return {
-          ...p,
-          stock: revStock,
-          stockColis: Math.ceil(revStock / 12),
-          prixDeRevient: revCost
-        };
-      }
-      return p;
-    });
+    // Check if this voucher is already open in our drafts
+    const existingDraft = openDrafts.find(d => d.id === selectedVoucher.id && d.isEditingExisting);
+    if (existingDraft) {
+      loadDraft(existingDraft);
+      return;
+    }
 
-    setLocalProducts(revertedProducts);
-    setEditingVoucherId(selectedVoucher.id);
-    setNewVoucherId(selectedVoucher.id);
-    setNewDate(selectedVoucher.date);
-    setNewTime(selectedVoucher.time);
-    setNewSupplierName(selectedVoucher.supplier);
-    setDraftItems([...selectedVoucher.items]);
-    setVersement(selectedVoucher.versement || 0);
-    setBarcodeInput('');
-    setSelectedDraftIdx(selectedVoucher.items.length > 0 ? 0 : -1);
-    setIsSupplierSelectOpen(false);
-    setMode('create');
+    // Otherwise, create a new draft for it and add to openDrafts
+    const newDraft = {
+      id: selectedVoucher.id,
+      date: selectedVoucher.date,
+      time: selectedVoucher.time,
+      supplier: selectedVoucher.supplier,
+      draftItems: [...selectedVoucher.items],
+      versement: selectedVoucher.versement || 0,
+      isEditingExisting: true
+    };
+
+    setOpenDrafts(prev => [...prev, newDraft]);
+    loadDraft(newDraft);
   };
 
   // Safe barcode scanner direct helper
@@ -643,11 +829,6 @@ export default function PurchaseVoucherWindow({
 
   // Opens Mode de paiement popup instead of saving directly
   const handleSaveVoucher = () => {
-    if (draftItems.length === 0) {
-      showRetroAlert('Veuillez ajouter au moins un produit.');
-      return;
-    }
-    
     // Determine payment mode and pre-filled versement
     // If the main column's versement is 0, default to credit 'A_TERME'
     const defaultMode = (versement === 0) ? 'A_TERME' : 'ESPECE';
@@ -729,6 +910,9 @@ export default function PurchaseVoucherWindow({
       showRetroAlert(`Bon d'Achat N° ${savedVoucher.id} enregistré avec succès!`);
     }
 
+    // Remove this voucher from openDrafts since it's now closed/finalized/modified!
+    setOpenDrafts(prev => prev.filter(d => d.id !== savedVoucher.id));
+
     if (onProductsUpdate) {
       onProductsUpdate(finalizedProducts);
     }
@@ -751,6 +935,7 @@ export default function PurchaseVoucherWindow({
         const nextActiveId = remaining.length > 0 ? remaining[remaining.length - 1].id : '';
         
         onDeletePurchase(idToDelete);
+        setOpenDrafts(prev => prev.filter(d => String(d.id) !== String(idToDelete)));
         setSelectedVoucherId(nextActiveId);
         showRetroAlert(`Le Bon d'Achat N° ${idToDelete} a été retiré de la base de données.`);
       },
@@ -965,7 +1150,9 @@ export default function PurchaseVoucherWindow({
       const existingCost = Number(prodPrixDeRevient) || 0; // Use modified starting cost price
       
       let newBalancedCost = cost;
-      if (qty <= 0) {
+      if (dialogMode === 'edit_existing') {
+        newBalancedCost = existingCost;
+      } else if (qty <= 0) {
         newBalancedCost = existingCost;
       } else if (existingStock <= 0) {
         newBalancedCost = cost;
@@ -982,12 +1169,17 @@ export default function PurchaseVoucherWindow({
         prixVente2: sp2,
         prixVente3: sp3,
         category: prodFamille,
-        prixDeRevient: newBalancedCost,
+        prixDeRevient: existingCost, // Keep pre-purchase cost price during draft phase
         prixAchat: cost
       };
     }
 
     setLocalProducts(updatedProducts);
+
+    // Immediately propagate the new/edited product definition (with starting catalog stock/cost) to the global catalog
+    if (onProductsUpdate) {
+      onProductsUpdate(updatedProducts);
+    }
 
     // 2. Add/Replace in current voucher items draft
     const existingIndexInVoucherItem = draftItems.findIndex(item => item.code === cleanCode);
@@ -1020,6 +1212,7 @@ export default function PurchaseVoucherWindow({
   // Handles Keyboards POS Quick Shortcuts
   useEffect(() => {
     const handleGlobalKeydowns = (e: KeyboardEvent) => {
+      if (!isOpen) return;
       // Only process keys when current pane is active (i.e. focused / not writing inside key inputs)
       // Check if user is typing on target elements inside some input
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
@@ -1124,7 +1317,7 @@ export default function PurchaseVoucherWindow({
     window.addEventListener('keydown', handleGlobalKeydowns);
     return () => window.removeEventListener('keydown', handleGlobalKeydowns);
   }, [
-    mode, purchases, selectedDraftIdx, draftItems, isProductDialogOpen, isCatalogSearchOpen, localProducts,
+    isOpen, mode, purchases, selectedDraftIdx, draftItems, isProductDialogOpen, isCatalogSearchOpen, localProducts,
     prodCode, prodDesignation, prodPrixVente1, prodPrixAchat, prodQtyCalculated, prodColisage, prodNbreColis,
     isPaymentDialogOpen, paymentVersement, editingVoucherId, paymentMode, paymentSource, draftMetrics,
     selectedVoucher, selectedVoucherId, handleDeleteVoucher
@@ -1161,7 +1354,7 @@ export default function PurchaseVoucherWindow({
           <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/20 gap-1 shadow-inner">
             <button
               onClick={handleFirst}
-              disabled={mode === 'create' || purchases.length === 0}
+              disabled={navigableVouchers.length === 0 || activeVoucherIndex <= 0}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Premier Bon"
             >
@@ -1170,7 +1363,7 @@ export default function PurchaseVoucherWindow({
             </button>
             <button
               onClick={handlePrev}
-              disabled={mode === 'create' || activeVoucherIndex <= 0}
+              disabled={navigableVouchers.length === 0 || activeVoucherIndex <= 0}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Bon Précédent"
             >
@@ -1179,7 +1372,7 @@ export default function PurchaseVoucherWindow({
             </button>
             <button
               onClick={handleNext}
-              disabled={mode === 'create' || activeVoucherIndex >= purchases.length - 1}
+              disabled={navigableVouchers.length === 0 || activeVoucherIndex >= navigableVouchers.length - 1}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Bon Suivant"
             >
@@ -1188,7 +1381,7 @@ export default function PurchaseVoucherWindow({
             </button>
             <button
               onClick={handleLast}
-              disabled={mode === 'create' || purchases.length === 0}
+              disabled={navigableVouchers.length === 0 || activeVoucherIndex >= navigableVouchers.length - 1}
               className="w-10 h-9 flex flex-col justify-center items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200/30 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 select-none cursor-pointer"
               title="Dernier Bon"
             >
@@ -1269,21 +1462,54 @@ export default function PurchaseVoucherWindow({
             </button>
 
             {mode === 'create' ? (
-              <button
-                onClick={() => setMode('view')}
-                className="px-3.5 h-10 flex items-center justify-center gap-2 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-950 cursor-pointer transition-transform duration-100 active:scale-95"
-              >
-                <span className="text-base">✕</span>
-                <div className="flex flex-col text-left font-sans">
-                  <span className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Annuler</span>
-                  <span className="text-[8px] font-bold text-rose-500 tracking-wider mt-0.5">[ F2 ]</span>
-                </div>
-              </button>
+              <div className="flex gap-1.5 animate-in slide-in-from-right-3 duration-150">
+                <button
+                  type="button"
+                  onClick={() => {
+                    showRetroConfirm(
+                      `Voulez-vous vraiment supprimer le Brouillon de Bon d'Achat N° ${newVoucherId} ?`,
+                      () => {
+                        const idToDelete = newVoucherId;
+                        setOpenDrafts(prev => prev.filter(d => d.id !== idToDelete));
+                        setMode('view');
+                        setEditingVoucherId(null);
+                        if (purchases.length > 0) {
+                          setSelectedVoucherId(purchases[purchases.length - 1].id);
+                        } else {
+                          setSelectedVoucherId('');
+                        }
+                      }
+                    );
+                  }}
+                  className="px-3.5 h-10 flex items-center justify-center gap-2 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-950 cursor-pointer transition-transform duration-100 active:scale-95 shadow-xs"
+                >
+                  <span className="text-base">🗑️</span>
+                  <div className="flex flex-col text-left font-sans">
+                    <span className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Suppr. Brouillon</span>
+                    <span className="text-[8px] font-bold text-rose-500 tracking-wider mt-0.5">Dispo</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('view');
+                    setEditingVoucherId(null);
+                  }}
+                  className="px-3.5 h-10 flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-950 cursor-pointer transition-transform duration-100 active:scale-95 shadow-xs"
+                >
+                  <span className="text-base">✕</span>
+                  <div className="flex flex-col text-left font-sans">
+                    <span className="font-extrabold text-[10px] uppercase tracking-wider leading-none">Annuler</span>
+                    <span className="text-[8px] font-bold text-amber-500 tracking-wider mt-0.5">[ F2 ]</span>
+                  </div>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={handleDeleteVoucher}
                 disabled={!selectedVoucher}
-                className="px-3.5 h-10 flex items-center justify-center gap-2 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-950 cursor-pointer disabled:opacity-40 transition-transform duration-100 active:scale-95"
+                className="px-3.5 h-10 flex items-center justify-center gap-2 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-950 cursor-pointer disabled:opacity-40 transition-transform duration-100 active:scale-95 shadow-xs"
               >
                 <span className="text-base">🗑️</span>
                 <div className="flex flex-col text-left font-sans">
@@ -1339,44 +1565,76 @@ export default function PurchaseVoucherWindow({
                 </tr>
               </thead>
               <tbody className="font-sans text-[11.5px]">
-                {purchases.map((v) => {
-                  const isCur = v.id === selectedVoucherId && mode === 'view';
+                {navigableVouchers.map((nav) => {
+                  const isDraft = nav.type === 'draft';
+                  const v = nav.data;
+                  const isEditing = editingVoucherId === v.id;
+                  
+                  const isSelected = isDraft 
+                    ? (mode === 'create' && !editingVoucherId && newVoucherId === v.id)
+                    : (selectedVoucherId === v.id || isEditing);
+
+                  const displaySupplier = isEditing ? newSupplierName : v.supplier;
+                  const displayItemsCount = isEditing ? draftItems.length : isDraft ? (v.draftItems || []).length : v.itemsCount;
+                  
+                  let displayTtc = 0;
+                  if (isEditing) {
+                    displayTtc = draftMetrics.ttc ?? 0;
+                  } else if (isDraft) {
+                    const items = v.draftItems || [];
+                    const rawAmount = items.reduce((sum: number, it: any) => sum + ((it.price || 0) * (it.qty || 0)), 0);
+                    const tva = items.reduce((acc: number, item: any) => {
+                      const ht = (item.price || 0) * (item.qty || 0);
+                      const tvaVal = ht * ((item.tvaRate || 19) / 100);
+                      return acc + tvaVal;
+                    }, 0);
+                    displayTtc = Math.round((rawAmount + tva) * 100) / 100;
+                  } else {
+                    displayTtc = v.ttc ?? 0;
+                  }
+
+                  const isLocked = !isDraft && !isEditing;
+
                   return (
                     <tr
                       key={v.id}
                       onClick={() => {
-                        if (mode === 'create') return;
-                        setSelectedVoucherId(v.id);
+                        if (isDraft) {
+                          loadDraft(v);
+                        } else {
+                          setSelectedVoucherId(v.id);
+                          setEditingVoucherId(null);
+                          setMode('view');
+                        }
                       }}
                       className={`cursor-pointer border-b border-slate-100 dark:border-slate-900/60 transition-colors ${
-                        isCur 
-                          ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold' 
-                          : 'hover:bg-slate-100/60 dark:hover:bg-slate-900/40 odd:bg-slate-50/20 dark:odd:bg-slate-900/10 text-slate-700 dark:text-slate-300'
+                        isEditing
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border-l-2 border-l-amber-500'
+                          : isSelected 
+                            ? isDraft 
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold'
+                              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold' 
+                            : 'hover:bg-slate-100/60 dark:hover:bg-slate-900/40 odd:bg-slate-50/20 dark:odd:bg-slate-900/10 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <td className="px-3 py-2 font-semibold">{v.id}</td>
+                      <td className="px-3 py-2 font-semibold flex items-center gap-1.5">
+                        {!isLocked ? (
+                          <span title="Bon ouvert / Modification en cours" className="text-amber-500 text-[11px]">🔓</span>
+                        ) : (
+                          <span title="Bon clôturé" className="text-slate-400 dark:text-slate-500 text-[11px]">🔒</span>
+                        )}
+                        <span>{v.id}</span>
+                      </td>
                       <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{v.date}</td>
                       <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{v.time}</td>
-                      <td className="px-3 py-2 truncate max-w-[140px] select-all font-medium">{v.supplier}</td>
-                      <td className="px-3 py-2 text-center text-slate-500 dark:text-slate-400">{v.itemsCount}</td>
+                      <td className="px-3 py-2 truncate max-w-[140px] select-all font-medium">{displaySupplier}</td>
+                      <td className="px-3 py-2 text-center text-slate-500 dark:text-slate-400">{displayItemsCount}</td>
                       <td className="px-3 py-2 text-right font-black text-indigo-950 dark:text-indigo-300">
-                        {(v.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
+                        {displayTtc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
                       </td>
                     </tr>
                   );
                 })}
-                {mode === 'create' && (
-                  <tr className="bg-yellow-500/5 border-double border-b border-yellow-300/40 animate-pulse text-yellow-600 dark:text-yellow-400 font-bold">
-                    <td className="px-3 py-2">{newVoucherId}</td>
-                    <td className="px-3 py-2">{newDate}</td>
-                    <td className="px-3 py-2">{newTime}</td>
-                    <td className="px-3 py-2 truncate max-w-[140px] italic">{newSupplierName} (Mode d'Achat)</td>
-                    <td className="px-3 py-2 text-center">{draftItems.length}</td>
-                    <td className="px-3 py-2 text-right font-black">
-                      {(draftMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DA
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -1413,7 +1671,14 @@ export default function PurchaseVoucherWindow({
           {/* Row 1: N° Bon d'Achat & Date d'opération */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">N° Bon d'Achat</span>
+              <div className="flex items-center gap-1">
+                <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">N° Bon d'Achat</span>
+                {mode === 'create' ? (
+                  <span title="Bon ouvert / Modification en cours" className="text-[10px] text-amber-500">🔓</span>
+                ) : (
+                  <span title="Bon clôturé" className="text-[10px] text-slate-400 dark:text-slate-500">🔒</span>
+                )}
+              </div>
               <input
                 type="text"
                 readOnly

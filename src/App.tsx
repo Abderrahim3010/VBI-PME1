@@ -1485,6 +1485,7 @@ export default function App() {
             scale={scale}
           >
             <PurchaseVoucherWindow
+              isOpen={windows.find(w => w.id === 'purchases')?.isOpen || false}
               products={products}
               suppliers={suppliers}
               purchases={purchases}
@@ -1518,6 +1519,7 @@ export default function App() {
             scale={scale}
           >
             <SalesVoucherWindow
+              isOpen={windows.find(w => w.id === 'sales')?.isOpen || false}
               products={products}
               clients={clients}
               sales={sales}

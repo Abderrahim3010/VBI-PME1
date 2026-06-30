@@ -26,6 +26,7 @@ interface SalesVoucherWindowProps {
   onProductsUpdate: (products: Product[]) => void;
   onClientsUpdate: (clients: Client[]) => void;
   onClose: () => void;
+  isOpen?: boolean;
 }
 
 export default function SalesVoucherWindow({
@@ -37,7 +38,8 @@ export default function SalesVoucherWindow({
   onDeleteSale,
   onProductsUpdate,
   onClientsUpdate,
-  onClose
+  onClose,
+  isOpen = false
 }: SalesVoucherWindowProps) {
   // Selection/navigation between previous invoices
   const [selectedSaleId, setSelectedSaleId] = useState<string>(() => {
@@ -55,11 +57,23 @@ export default function SalesVoucherWindow({
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [editingVoucherId, setEditingVoucherId] = useState<string | null>(null);
 
-  // Sync local products with props when in view mode
+  // Synchronize local products with props dynamically while preserving local draft state adjustments
   useEffect(() => {
-    if (mode === 'view') {
-      setLocalProducts(products);
-    }
+    setLocalProducts(prev => {
+      const prevMap = new Map<string, Product>(prev.map(p => [p.code, p]));
+      
+      return products.map(p => {
+        const prevProd = prevMap.get(p.code);
+        if (prevProd && mode === 'create') {
+          return {
+            ...p,
+            stock: prevProd.stock,
+            stockColis: prevProd.stockColis
+          };
+        }
+        return p;
+      });
+    });
   }, [products, mode]);
 
   // Mode de paiement modal states
@@ -486,6 +500,7 @@ export default function SalesVoucherWindow({
   // Keyboard shortcut Ctrl+B for profit/benefit toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         setShowBenefit(prev => !prev);
@@ -495,7 +510,7 @@ export default function SalesVoucherWindow({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   // Total Benefit / Margin Calculation
   const totalBenefit = useMemo(() => {
@@ -836,6 +851,7 @@ export default function SalesVoucherWindow({
   // Hotkeys Hook
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
       // If we are editing inside some text inputs, don't trigger global hotkeys unless barcode input
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (tag === 'input' && !(e.target as HTMLInputElement).readOnly && !isProductChooserOpen && !isPaymentDialogOpen) {
@@ -873,7 +889,7 @@ export default function SalesVoucherWindow({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, draftItems, newSaleId, newDate, newTime, newClientName, newType, versement, remise, tvaRate, products, isPaymentDialogOpen, paymentVersement, paymentMode, openVouchers]);
+  }, [isOpen, mode, draftItems, newSaleId, newDate, newTime, newClientName, newType, versement, remise, tvaRate, products, isPaymentDialogOpen, paymentVersement, paymentMode, openVouchers]);
 
   const handleInsertProduct = () => {
     if (mode !== 'create') {

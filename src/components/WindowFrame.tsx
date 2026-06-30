@@ -213,6 +213,16 @@ export default function WindowFrame({
     e.stopPropagation();
   };
 
+  const [hasBeenOpened, setHasBeenOpened] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setHasBeenOpened(true);
+    }
+  }, [isOpen]);
+
+  const isHidden = !isOpen || isMinimized;
+
   const winStyle: React.CSSProperties = isMaximized
     ? {
         position: 'absolute',
@@ -221,6 +231,7 @@ export default function WindowFrame({
         right: '12px',
         bottom: '12px', 
         zIndex,
+        display: isHidden ? 'none' : 'flex',
       }
     : {
         position: 'absolute',
@@ -229,6 +240,7 @@ export default function WindowFrame({
         width: `${size.width}px`,
         height: `${size.height}px`,
         zIndex,
+        display: isHidden ? 'none' : 'flex',
       };
 
   // Icon selector based on app module
@@ -247,7 +259,7 @@ export default function WindowFrame({
     }
   };
 
-  if (!isOpen || isMinimized) return null;
+  if (!hasBeenOpened) return null;
 
   return (
     <div
@@ -287,14 +299,6 @@ export default function WindowFrame({
         
         {/* Material 3 Styled window controls */}
         <div className="flex items-center gap-1 select-none shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onMinimize(); }}
-            id={`btn-min-${id}`}
-            title="Réduire"
-            className="w-5.5 h-5.5 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-200/65 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
-          >
-            <Minus size={10} className="stroke-[2.5]" />
-          </button>
           <button
             onClick={(e) => { e.stopPropagation(); onMaximize(); }}
             id={`btn-max-${id}`}

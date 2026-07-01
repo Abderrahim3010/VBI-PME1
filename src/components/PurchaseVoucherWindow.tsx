@@ -63,6 +63,10 @@ export default function PurchaseVoucherWindow({
   const [localSearchOpen, setLocalSearchOpen] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
+  // Registre filters
+  const [filterVoucherId, setFilterVoucherId] = useState('');
+  const [filterVoucherDate, setFilterVoucherDate] = useState('');
+
   // Supplier selector modal states
   const [isSupplierSelectOpen, setIsSupplierSelectOpen] = useState(false);
   const [supplierSelectType, setSupplierSelectType] = useState<'existing' | 'new'>('existing');
@@ -486,11 +490,28 @@ export default function PurchaseVoucherWindow({
       });
     });
 
+    let list = Array.from(map.values());
+
+    // Apply voucher ID filter
+    if (filterVoucherId.trim()) {
+      const q = filterVoucherId.trim().toLowerCase();
+      list = list.filter(v => v.id.toLowerCase().includes(q));
+    }
+
+    // Apply voucher Date filter
+    if (filterVoucherDate.trim()) {
+      const q = filterVoucherDate.trim().toLowerCase();
+      list = list.filter(v => {
+        const d = v.type === 'closed' ? (v.data.date || '') : (v.data.date || '');
+        return d.toLowerCase().includes(q);
+      });
+    }
+
     // Sort by ID (numerical sort)
-    return Array.from(map.values()).sort((a, b) => {
+    return list.sort((a, b) => {
       return a.id.localeCompare(b.id, undefined, { numeric: true });
     });
-  }, [purchases, openDrafts]);
+  }, [purchases, openDrafts, filterVoucherId, filterVoucherDate]);
 
   // Set active voucher ID
   const activeId = mode === 'create' ? newVoucherId : selectedVoucherId;
@@ -1571,11 +1592,51 @@ export default function PurchaseVoucherWindow({
           style={{ width: `${topSplitWidth}%` }} 
           className="flex flex-col rounded-2xl border border-slate-200/50 dark:border-slate-800/85 bg-white dark:bg-slate-950 h-full min-w-[200px] overflow-hidden shadow-xs"
         >
-          <div className="bg-slate-50 dark:bg-slate-900 font-bold px-4 py-2.5 border-b border-slate-150 dark:border-slate-850/60 text-slate-700 dark:text-slate-300 font-sans select-none flex justify-between items-center shrink-0">
-            <span className="flex items-center gap-1.5 font-display text-xs font-extrabold">
+          <div className="bg-slate-50 dark:bg-slate-900 font-bold px-4 py-1.5 border-b border-slate-150 dark:border-slate-850/60 text-slate-700 dark:text-slate-300 font-sans select-none flex justify-between items-center shrink-0 gap-2 flex-wrap md:flex-nowrap">
+            <span className="flex items-center gap-1.5 font-display text-xs font-extrabold whitespace-nowrap">
               <span className="text-indigo-500">📋</span> Registre des Bons d'Achat
             </span>
-            <span className="text-slate-400 text-[9.5px] uppercase font-mono tracking-wider">Algérie Commerce</span>
+            <div className="flex items-center gap-2 select-text">
+              {/* N° search filter */}
+              <div className="relative flex items-center">
+                <span className="absolute left-2 text-[10px] text-slate-400 font-bold">N°:</span>
+                <input
+                  type="text"
+                  placeholder="Chercher..."
+                  value={filterVoucherId}
+                  onChange={(e) => setFilterVoucherId(e.target.value)}
+                  className="w-24 h-6 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-lg pl-6 pr-4.5 text-[10.5px] font-mono font-bold text-slate-700 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-indigo-500"
+                />
+                {filterVoucherId && (
+                  <button 
+                    onClick={() => setFilterVoucherId('')}
+                    className="absolute right-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[9px]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Date search filter */}
+              <div className="relative flex items-center">
+                <span className="absolute left-2 text-[10px] text-slate-400 font-bold">📅:</span>
+                <input
+                  type="text"
+                  placeholder="Date..."
+                  value={filterVoucherDate}
+                  onChange={(e) => setFilterVoucherDate(e.target.value)}
+                  className="w-24 h-6 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/80 rounded-lg pl-6 pr-4.5 text-[10.5px] font-mono font-bold text-slate-700 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-indigo-500"
+                />
+                {filterVoucherDate && (
+                  <button 
+                    onClick={() => setFilterVoucherDate('')}
+                    className="absolute right-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[9px]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex-1 overflow-auto">
             <table className="w-full text-left font-sans text-xs border-collapse">
@@ -1638,7 +1699,7 @@ export default function PurchaseVoucherWindow({
                     >
                       <td className="px-3 py-2 font-semibold flex items-center gap-1.5">
                         {!isLocked ? (
-                          <span title="Bon ouvert / Modification en cours" className="text-amber-500 text-[11px]">🔓</span>
+                          <span title="Bon ouvert / Modification en cours" className="text-amber-500 text-[11px]">✏️</span>
                         ) : (
                           <span title="Bon clôturé" className="text-slate-400 dark:text-slate-500 text-[11px]">🔒</span>
                         )}
@@ -1685,88 +1746,50 @@ export default function PurchaseVoucherWindow({
         {/* Compact Form Panel (Right) */}
         <div 
           style={{ width: `${100 - topSplitWidth}%` }} 
-          className="bg-white dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/85 flex flex-col gap-2 select-all overflow-y-auto h-full min-w-[220px] shadow-xs"
+          className="bg-white dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/85 flex flex-col justify-center overflow-y-auto h-full min-w-[220px] shadow-xs"
         >
-          {/* Row 1: N° Bon d'Achat & Date d'opération */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
+            {/* Column 1: Ancien solde */}
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1">
-                <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">N° Bon d'Achat</span>
-                {mode === 'create' ? (
-                  <span title="Bon ouvert / Modification en cours" className="text-[10px] text-amber-500">🔓</span>
-                ) : (
-                  <span title="Bon clôturé" className="text-[10px] text-slate-400 dark:text-slate-500">🔒</span>
-                )}
-              </div>
-              <input
-                type="text"
-                readOnly
-                value={mode === 'create' ? newVoucherId : (selectedVoucher?.id || '')}
-                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 outline-none text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300"
-              />
-            </div>
-
-            <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Date d'opération</span>
-              <input
-                type="text"
-                readOnly={mode === 'view'}
-                value={mode === 'create' ? newDate : (selectedVoucher?.date || '')}
-                onChange={(e) => mode === 'create' && setNewDate(e.target.value)}
-                className="h-7.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-2.5 font-mono text-[11px] text-slate-705 dark:text-slate-300"
-              />
-            </div>
-          </div>
-
-
-
-          {/* Row 3: Ancien solde & Nouveau solde */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Ancien solde</span>
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider truncate" title="Ancien solde">Ancien solde</span>
               <input
                 type="text"
                 readOnly
                 value={(displayMetrics.oldBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
-                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-rose-600 dark:text-rose-400"
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-rose-600 dark:text-rose-400"
               />
             </div>
 
+            {/* Column 2: Montant ( bon ) */}
             <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Nouveau solde</span>
-              <input
-                type="text"
-                readOnly
-                value={(displayMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
-                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400"
-              />
-            </div>
-          </div>
-
-          {/* Row 4: Montant total & Versement d'achat */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Montant total</span>
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider truncate" title="Montant ( bon )">Montant ( bon )</span>
               <input
                 type="text"
                 readOnly
                 value={(displayMetrics.ttc ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
-                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-indigo-950 dark:text-indigo-300"
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-indigo-950 dark:text-indigo-300"
               />
             </div>
 
+            {/* Column 3: Versement */}
             <div className="flex flex-col gap-0.5">
-              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider">Versement</span>
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider truncate" title="Versement">Versement</span>
               <input
-                type="number"
-                disabled={mode === 'view'}
-                value={mode === 'create' ? (versement || '') : (selectedVoucher?.versement || 0)}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  setVersement(isNaN(val) ? 0 : val);
-                }}
-                placeholder="0,00"
-                className="h-7.5 rounded-xl bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 focus:border-slate-300 dark:focus:border-slate-700 outline-none px-2.5 text-right text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 disabled:bg-slate-100/50 dark:disabled:bg-slate-900 disabled:text-slate-400"
+                type="text"
+                readOnly
+                value={(mode === 'create' ? (versement || 0) : (selectedVoucher?.versement || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400"
+              />
+            </div>
+
+            {/* Column 4: Nouveau solde */}
+            <div className="flex flex-col gap-0.5">
+              <span className="font-extrabold text-[9px] uppercase text-slate-500 tracking-wider truncate" title="Nouveau solde">Nouveau solde</span>
+              <input
+                type="text"
+                readOnly
+                value={(displayMetrics.newBalance ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' DA'}
+                className="h-7.5 rounded-xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 px-2.5 text-right outline-none text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400"
               />
             </div>
           </div>

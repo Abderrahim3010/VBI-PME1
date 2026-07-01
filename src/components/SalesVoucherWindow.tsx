@@ -2488,62 +2488,62 @@ export default function SalesVoucherWindow({
         </div>
       )}
 
-      {/* -------------------- CUSTOM RETRO CONFIRM / ALERT DIALOG BOX -------------------- */}
+      {/* -------------------- CUSTOM CONFIRM / ALERT DIALOG BOX -------------------- */}
       {retroDialog.isOpen && (
-        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-[9999] select-none">
-          <div className="w-[420px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] p-0.5 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-[2px] select-none">
+          <div className="w-[420px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
             
-            {/* Dialog Blue Title Bar */}
-            <div className="bg-gradient-to-r from-[#0a246a] to-[#a6caf0] text-white px-2 py-1.5 flex items-center justify-between font-sans font-bold text-xs select-none">
-              <span className="flex items-center gap-1.5">
-                <span className="text-sm">💬</span>
-                <span className="tracking-wide text-[11px] font-sans font-bold text-white uppercase">{retroDialog.title}</span>
+            {/* Dialog Title Bar */}
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between font-bold">
+              <span className="flex items-center gap-2 text-slate-850 dark:text-slate-200">
+                <span>💬</span>
+                <span className="tracking-wide text-xs uppercase">{retroDialog.title}</span>
               </span>
               <button
                 onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                className="w-4.5 h-4.5 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-b-white active:border-r-white flex items-center justify-center font-bold text-[10px] cursor-pointer focus:outline-none"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Dialog Contents */}
-            <div className="p-5 flex gap-4 text-xs font-bold text-slate-800 items-center bg-gray-100/90 m-1.5 border border-t-[#808080] border-b-[#ffffff] border-l-[#808080] border-r-[#ffffff]">
+            <div className="p-5 flex gap-4 text-xs font-bold text-slate-700 dark:text-slate-300 items-start select-text leading-relaxed bg-white dark:bg-slate-900 m-1">
               {/* Icon */}
-              <div className="text-4xl select-none flex-shrink-0">
+              <div className="text-3xl select-none flex-shrink-0">
                 {retroDialog.type === 'confirm' ? '❓' : '⚠️'}
               </div>
-              <div className="flex-1 whitespace-pre-wrap font-sans text-[11px] font-bold text-slate-900 leading-normal select-text selection:bg-[#000080] selection:text-white">
+              <div className="flex-1 whitespace-pre-wrap pt-1 selection:bg-indigo-200 dark:selection:bg-indigo-900">
                 {retroDialog.message}
               </div>
             </div>
 
             {/* Dialog Action Buttons */}
-            <div className="p-2 pb-3 flex justify-center gap-4 bg-[#d4d0c8]">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 select-none">
               {retroDialog.type === 'confirm' ? (
                 <>
+                  <button
+                    onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
+                    className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Non (Annuler)
+                  </button>
                   <button
                     onClick={() => {
                       if (retroDialog.onConfirm) retroDialog.onConfirm();
                       setRetroDialog(prev => ({ ...prev, isOpen: false }));
                     }}
-                    className="px-6 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1.5 justify-center min-w-[72px]"
+                    className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-md"
                   >
-                    <span>✔️</span> Oui
-                  </button>
-                  <button
-                    onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                    className="px-6 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1.5 justify-center min-w-[72px]"
-                  >
-                    <span>❌</span> Non
+                    Oui
                   </button>
                 </>
               ) : (
                 <button
                   onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                  className="px-7 h-7 text-[11px] font-bold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm cursor-pointer flex items-center gap-1 justify-center min-w-[72px]"
+                  className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-md"
                 >
-                  OK
+                  OK (Valider)
                 </button>
               )}
             </div>

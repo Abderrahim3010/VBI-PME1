@@ -111,7 +111,7 @@ export default function PurchaseVoucherWindow({
               supplier: newSupplierName,
               draftItems,
               versement,
-              isEditingExisting: !!editingVoucherId
+              isEditingExisting: draft.isEditingExisting !== undefined ? draft.isEditingExisting : !!editingVoucherId
             };
           }
           return draft;
@@ -2084,44 +2084,44 @@ export default function PurchaseVoucherWindow({
 
       {/* ==================== SELECT CATALOG PRODUCT MODAL ==================== */}
       {isCatalogSearchOpen && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50 p-2 backdrop-blur-[1px]">
-          <div className="w-[540px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] shadow-2xl flex flex-col p-[2px] font-mono text-xs text-black">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-[2px]">
+          <div className="w-[600px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
             
             {/* Modal Titlebar */}
-            <div className="bg-[#000080] text-white font-sans font-bold px-1.5 py-1 flex justify-between items-center select-none">
-              <span className="flex items-center gap-1">📥 INSÉRER UN PRODUIT DEPUIS LE CATALOGUE</span>
+            <div className="bg-slate-50 dark:bg-slate-950 px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center select-none">
+              <span className="flex items-center gap-2 font-bold text-sm text-slate-800 dark:text-slate-200">
+                <span>📥</span> INSÉRER UN PRODUIT DEPUIS LE CATALOGUE
+              </span>
               <button 
                 onClick={() => setIsCatalogSearchOpen(false)}
-                className="w-4 h-4 bg-[#d4d0c8] text-black font-extrabold flex items-center justify-center border border-white hover:bg-red-500 hover:text-white"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Instruction Banner */}
-            <div className="bg-amber-50 text-amber-950 px-2.5 py-1.5 border-b border-gray-400 font-sans select-none leading-normal">
-              Recherchez et sélectionnez le produit dans votre stock. Cliquez sur un article pour le choisir puis validez pour configurer sa quantité d'achat.
+            <div className="bg-amber-50/60 dark:bg-amber-950/25 text-amber-900 dark:text-amber-300 px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60 font-sans select-none leading-relaxed">
+              Recherchez et sélectionnez le produit dans votre stock. Cliquez sur un article pour le choisir puis valisez pour configurer sa quantité d'achat.
             </div>
 
             {/* Body */}
-            <div className="p-2.5 flex flex-col gap-2 bg-[#d4d0c8] flex-1">
+            <div className="p-4 flex flex-col gap-3 bg-white dark:bg-slate-900 flex-1">
               {/* Search Box Row */}
-              <div className="grid grid-cols-12 gap-1.5 items-center bg-blue-50/50 border border-blue-200 p-2 rounded">
-                <label className="col-span-3 font-bold text-blue-900 text-[11px] font-sans">RECHERCHER :</label>
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
+                <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider flex-shrink-0">Rechercher :</label>
                 <input
                   type="text"
                   autoFocus
-                  placeholder="Tapez pour filtrer par code-barre, nom, famille..."
+                  placeholder="Filtrer par code-barre, désignation, famille..."
                   value={insertSearchQuery}
                   onChange={(e) => {
                     setInsertSearchQuery(e.target.value);
-                    // Reset selected standard search product on query change so it chooses the first match automatically
                     setSelectedSearchProduct(null);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      // Find first match or currently selected
                       const queryText = insertSearchQuery.toLowerCase().trim();
                       const matched = localProducts.filter(p => {
                         if (!queryText) return true;
@@ -2137,23 +2137,23 @@ export default function PurchaseVoucherWindow({
                       }
                     }
                   }}
-                  className="col-span-9 h-7 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white text-xs outline-none font-bold text-blue-955 placeholder:text-gray-400 placeholder:font-normal"
+                  className="flex-1 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Matching products table */}
-              <div className="flex flex-col border border-white border-b-[#808080] border-r-[#808080]">
+              <div className="flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-1 bg-[#cecac3] font-bold text-[10px] text-slate-800 border-b border-gray-400 py-1 px-1.5 select-none font-sans">
-                  <span className="col-span-3 border-r border-gray-300">Code Article</span>
-                  <span className="col-span-4 border-r border-gray-300">Désignation Produit</span>
-                  <span className="col-span-2.5 border-r border-gray-300">Famille</span>
-                  <span className="col-span-1.5 border-r border-gray-300 text-center">Stock</span>
-                  <span className="col-span-1 border-r border-gray-300 text-right font-sans">PV1</span>
+                <div className="grid grid-cols-12 gap-1 bg-slate-50 dark:bg-slate-950 font-bold text-[10px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-850 py-2 px-3 select-none font-sans uppercase tracking-wider">
+                  <span className="col-span-3">Code Article</span>
+                  <span className="col-span-4">Désignation Produit</span>
+                  <span className="col-span-2.5">Famille</span>
+                  <span className="col-span-1.5 text-center">Stock</span>
+                  <span className="col-span-1 text-right">PV1</span>
                 </div>
                 
                 {/* Table Body */}
-                <div className="max-h-[220px] overflow-y-auto bg-white border-t border-[#808080] border-l-[#808080] flex flex-col font-mono text-[11px] font-bold text-slate-800 divide-y divide-gray-100">
+                <div className="max-h-[220px] overflow-y-auto bg-white dark:bg-slate-900 flex flex-col font-mono text-[11px] text-slate-700 dark:text-slate-300 divide-y divide-slate-100 dark:divide-slate-850">
                   {(() => {
                     const queryText = insertSearchQuery.toLowerCase().trim();
                     const matched = localProducts.filter(p => {
@@ -2176,18 +2176,18 @@ export default function PurchaseVoucherWindow({
                               key={p.code}
                               onClick={() => setSelectedSearchProduct(p)}
                               onDoubleClick={() => handleSelectCatalogProduct(p)}
-                              className={`grid grid-cols-12 gap-1 py-1 px-1.5 cursor-pointer leading-tight select-none ${
+                              className={`grid grid-cols-12 gap-1 py-2 px-3 cursor-pointer items-center leading-tight select-none transition-colors duration-75 ${
                                 isActive 
-                                  ? 'bg-[#000080] text-white hover:bg-[#000080]' 
-                                  : 'hover:bg-blue-50 text-slate-800'
+                                  ? 'bg-indigo-650 text-white font-bold' 
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-800 dark:text-slate-200'
                               }`}
                             >
                               <span className="col-span-3 truncate">{p.code}</span>
                               <span className="col-span-4 truncate">{p.designation}</span>
-                              <span className="col-span-2.5 truncate font-sans text-[10px] text-gray-500 group-hover:text-inherit">
+                              <span className={`col-span-2.5 truncate font-sans text-[10px] ${isActive ? 'text-indigo-100' : 'text-slate-500'}`}>
                                 {p.category || '(Sans)'}
                               </span>
-                              <span className={`col-span-1.5 text-center truncate ${isActive ? 'text-white' : 'text-[#000080]'}`}>
+                              <span className={`col-span-1.5 text-center truncate ${isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400 font-bold'}`}>
                                 {p.stock}
                               </span>
                               <span className="col-span-1 text-right truncate">
@@ -2197,7 +2197,7 @@ export default function PurchaseVoucherWindow({
                           );
                         })}
                         {matched.length === 0 && (
-                          <div className="p-8 text-center text-gray-400 italic font-sans">
+                          <div className="p-8 text-center text-slate-400 dark:text-slate-500 italic font-sans">
                             Aucun produit correspondant trouvé dans votre stock.
                           </div>
                         )}
@@ -2223,22 +2223,22 @@ export default function PurchaseVoucherWindow({
                 return (
                   <>
                     {activeItem && (
-                      <div className="bg-[#000080]/15 text-[#000080] p-1.5 px-2 border border-[#000080]/20 rounded font-sans flex justify-between items-center select-none text-[11px] font-bold">
+                      <div className="bg-indigo-50/60 dark:bg-indigo-950/20 text-indigo-900 dark:text-indigo-300 p-2.5 px-3 border border-indigo-100/50 dark:border-indigo-900/30 rounded-xl font-sans flex justify-between items-center select-none text-[11px] font-bold">
                         <span>
-                          Produit sélectionné : <span className="text-blue-900">{activeItem.designation}</span> ({activeItem.code})
+                          Produit : <span className="text-indigo-750 dark:text-sky-300 font-extrabold">{activeItem.designation}</span> ({activeItem.code})
                         </span>
                         <span>
-                          Stock actuel : <span className="text-blue-900">{activeItem.stock}</span> unités
+                          Stock actuel : <span className="text-indigo-750 dark:text-sky-300 font-extrabold">{activeItem.stock}</span> unités
                         </span>
                       </div>
                     )}
 
                     {/* Dialog Buttons */}
-                    <div className="flex justify-end gap-2 mt-1 select-none font-sans font-bold">
+                    <div className="flex justify-end gap-2 mt-1.5 select-none font-sans font-bold">
                       <button
                         type="button"
                         onClick={() => setIsCatalogSearchOpen(false)}
-                        className="px-4 h-7 text-xs bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-250 cursor-default"
+                        className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs transition-colors cursor-pointer"
                       >
                         Annuler (Echap)
                       </button>
@@ -2248,7 +2248,7 @@ export default function PurchaseVoucherWindow({
                         onClick={() => {
                           if (activeItem) handleSelectCatalogProduct(activeItem);
                         }}
-                        className="px-5 h-7 text-xs bg-[#000080] text-white border border-t-blue-400 border-l-blue-400 border-b-black border-r-black hover:bg-blue-800 disabled:opacity-50 cursor-default"
+                        className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-45 shadow-md flex items-center justify-center"
                       >
                         Valider l'insertion (Entrer)
                       </button>
@@ -2261,38 +2261,38 @@ export default function PurchaseVoucherWindow({
 
           </div>
         </div>
-      )}
-
-      {/* ==================== PRODUIT (PRODUCT) MODAL DIALOG ==================== */}
+      )}        {/* ==================== PRODUIT (PRODUCT) MODAL DIALOG ==================== */}
       {isProductDialogOpen && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50 p-2 backdrop-blur-[1px]">
-          <div className="w-[530px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] shadow-2xl flex flex-col p-[2px] font-mono text-xs text-black">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-[2px]">
+          <div className="w-[580px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
             
             {/* Modal Titlebar */}
-            <div className="bg-[#000080] text-white font-sans font-bold px-1.5 py-1 flex justify-between items-center select-none">
-              <span className="flex items-center gap-1">📦 PRODUIT</span>
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center select-none">
+              <span className="flex items-center gap-2 font-bold text-sm text-slate-800 dark:text-slate-200">
+                <span>📦</span> CONFIGURATION DU PRODUIT
+              </span>
               <button 
                 onClick={() => setIsProductDialogOpen(false)}
-                className="w-4 h-4 bg-[#d4d0c8] text-black font-extrabold flex items-center justify-center border border-white hover:bg-red-500 hover:text-white"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Sub-banner: last purchased price or info */}
-            <div className="bg-sky-100 text-sky-950 px-2 py-1.5 font-bold border-b border-gray-400 select-none">
-              Dernier prix acheté pour ce fournisseur: {prodStockEnStock > 0 ? `${prodPrixDeRevient} DA` : '???'}
+            <div className="bg-sky-50 dark:bg-sky-950/25 text-sky-900 dark:text-sky-300 px-5 py-2 border-b border-slate-100 dark:border-slate-800/60 font-medium select-none">
+              Dernier prix d'achat fournisseur : <span className="font-mono font-bold">{prodStockEnStock > 0 ? `${prodPrixDeRevient} DA` : 'Nouveau Produit'}</span>
             </div>
 
             {/* Interactive F1/F2/F3 tabs header bar */}
-            <div className="flex bg-[#d4d0c8] border-b border-gray-400 pt-1 px-1 gap-1">
+            <div className="flex bg-slate-50 dark:bg-slate-950 border-b border-slate-250 dark:border-slate-800 px-4 pt-1.5 gap-1.5">
               <button
                 type="button"
                 onClick={() => setActiveDialogTab('general')}
-                className={`px-3 py-1 text-center font-bold border-t border-l border-r rounded-t select-none ${
+                className={`px-4 py-2 text-center font-semibold text-xs border-b-2 transition-all select-none ${
                   activeDialogTab === 'general'
-                    ? 'bg-[#d4d0c8] border-white border-b-transparent text-slate-900 z-10 -mb-[1px]'
-                    : 'bg-[#b6b2aa] border-t-gray-100 border-l-gray-100 border-r-gray-400 text-gray-700 hover:bg-gray-250'
+                    ? 'border-indigo-600 text-indigo-650 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 📁 Général [ F1 ]
@@ -2301,10 +2301,10 @@ export default function PurchaseVoucherWindow({
               <button
                 type="button"
                 onClick={() => setActiveDialogTab('plus_info')}
-                className={`px-3 py-1 text-center font-bold border-t border-l border-r rounded-t select-none ${
+                className={`px-4 py-2 text-center font-semibold text-xs border-b-2 transition-all select-none ${
                   activeDialogTab === 'plus_info'
-                    ? 'bg-[#d4d0c8] border-white border-b-transparent text-slate-900 z-10 -mb-[1px]'
-                    : 'bg-[#b6b2aa] border-t-gray-100 border-l-gray-100 border-r-gray-400 text-gray-700 hover:bg-gray-250'
+                    ? 'border-indigo-600 text-indigo-650 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 ℹ️ Plus d'info. [ F2 ]
@@ -2313,62 +2313,60 @@ export default function PurchaseVoucherWindow({
               <button
                 type="button"
                 onClick={() => setActiveDialogTab('photo')}
-                className={`px-3 py-1 text-center font-bold border-t border-l border-r rounded-t select-none ${
+                className={`px-4 py-2 text-center font-semibold text-xs border-b-2 transition-all select-none ${
                   activeDialogTab === 'photo'
-                    ? 'bg-[#d4d0c8] border-white border-b-transparent text-slate-900 z-10 -mb-[1px]'
-                    : 'bg-[#b6b2aa] border-t-gray-100 border-l-gray-100 border-r-gray-400 text-gray-700 hover:bg-gray-250'
+                    ? 'border-indigo-600 text-indigo-650 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 📷 Photo [ F3 ]
               </button>
             </div>
 
-            {/* TAB CONTENTS CONTAINER (With vintage bevel border) */}
-            <div className="p-2.5 bg-[#d4d0c8] border border-white border-t-transparent shadow-[inset_-1px_-1px_rgba(0,0,0,0.1),inset_1px_1px_white] flex-1">
+            {/* TAB CONTENTS CONTAINER */}
+            <div className="p-5 bg-white dark:bg-slate-900 flex-1 overflow-y-auto max-h-[420px]">
               
               {/* TAB 1: GENERAL */}
               {activeDialogTab === 'general' && (
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-3">
                   
-
-
                   {/* Row: Code with re-generation helper */}
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <label className="col-span-3 font-bold">Code</label>
-                    <div className="col-span-9 flex gap-1">
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <label className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Code-barre</label>
+                    <div className="col-span-9 flex gap-2">
                       <input
                         type="text"
                         value={prodCode}
                         onChange={(e) => setProdCode(e.target.value)}
                         readOnly={dialogMode === 'edit_existing'}
                         placeholder="Ex: 1019939874629"
-                        className="flex-1 h-6 px-2 bg-white read-only:bg-gray-200 border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono font-bold outline-none text-red-955 text-sm"
+                        className="flex-1 h-8 px-3 bg-white dark:bg-slate-900 read-only:bg-slate-100 dark:read-only:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold outline-none text-rose-600 dark:text-rose-400 text-xs focus:border-indigo-500"
                       />
                       {dialogMode === 'add_new' && (
                         <button
                           type="button"
                           onClick={() => setProdCode(generateRandom13DigitBarcode())}
                           title="Générer un code-barres aléatoire"
-                          className="px-2 bg-blue-800 text-white font-bold h-6 border border-white border-b-black border-r-black flex items-center justify-center font-sans hover:bg-blue-700 active:bg-blue-950"
+                          className="px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-450 font-bold h-8 rounded-xl border border-indigo-100 dark:border-indigo-900 transition-colors flex items-center justify-center font-sans cursor-pointer text-[10px]"
                         >
-                          ⚡ Random Code
+                          ⚡ Auto Code
                         </button>
                       )}
                     </div>
                   </div>
 
                   {/* Row: Famille */}
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <label className="col-span-3 font-bold">Famille</label>
-                    <div className="col-span-9 flex gap-1">
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <label className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Famille</label>
+                    <div className="col-span-9 flex gap-2">
                       {isAddingNewFamille ? (
-                        <div className="flex-1 flex gap-1 items-center">
+                        <div className="flex-1 flex gap-2 items-center">
                           <input
                             type="text"
                             value={newFamilleInput}
                             onChange={(e) => setNewFamilleInput(e.target.value)}
                             placeholder="Saisir nouvelle famille..."
-                            className="flex-1 h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none text-xs font-bold text-blue-900"
+                            className="flex-1 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs font-bold text-indigo-650 dark:text-indigo-400"
                             onKeyDown={(ev) => {
                               if (ev.key === 'Enter') {
                                 ev.preventDefault();
@@ -2404,7 +2402,7 @@ export default function PurchaseVoucherWindow({
                               setIsAddingNewFamille(false);
                               setNewFamilleInput('');
                             }}
-                            className="w-6 h-6 bg-green-100 text-green-900 border border-white border-b-green-800 border-r-green-800 flex items-center justify-center text-xs font-bold outline-none"
+                            className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/35 text-emerald-650 dark:text-emerald-400 border border-emerald-150 dark:border-emerald-900/40 flex items-center justify-center text-xs font-bold outline-none cursor-pointer"
                           >
                             ✔
                           </button>
@@ -2415,7 +2413,7 @@ export default function PurchaseVoucherWindow({
                               setIsAddingNewFamille(false);
                               setNewFamilleInput('');
                             }}
-                            className="w-6 h-6 bg-red-100 text-red-900 border border-white border-b-red-800 border-r-red-800 flex items-center justify-center text-xs font-bold outline-none"
+                            className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/35 text-rose-650 dark:text-rose-400 border border-rose-150 dark:border-rose-900/40 flex items-center justify-center text-xs font-bold outline-none cursor-pointer"
                           >
                             ✕
                           </button>
@@ -2425,7 +2423,7 @@ export default function PurchaseVoucherWindow({
                           <select
                             value={prodFamille}
                             onChange={(e) => setProdFamille(e.target.value)}
-                            className="flex-1 h-6 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none text-xs text-slate-800"
+                            className="flex-1 h-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs text-slate-800 dark:text-slate-100 px-2"
                           >
                             {familles.length === 0 ? (
                               <option value="">(Aucune famille)</option>
@@ -2442,17 +2440,17 @@ export default function PurchaseVoucherWindow({
                               setIsAddingNewFamille(true);
                               setNewFamilleInput('');
                             }}
-                            className="w-6 h-6 bg-gray-200 text-black border border-white border-b-black border-r-black flex items-center justify-center font-bold font-mono outline-none active:border-t-black active:border-l-black active:border-b-white active:border-r-white"
+                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold font-mono outline-none cursor-pointer"
                           >
-                            ▶
+                            ➕
                           </button>
                           <button 
                             type="button" 
-                            title="Gérer les familles (Modifier / Supprimer)"
+                            title="Gérer les familles"
                             onClick={() => {
                               setIsManagingFamilies(true);
                             }}
-                            className="w-6 h-6 bg-gray-200 text-black border border-white border-b-black border-r-black flex items-center justify-center font-bold font-mono outline-none active:border-t-black active:border-l-black active:border-b-white active:border-r-white"
+                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold font-mono outline-none cursor-pointer"
                           >
                             ⚙️
                           </button>
@@ -2462,86 +2460,86 @@ export default function PurchaseVoucherWindow({
                   </div>
 
                   {/* Row: Designation / Product name */}
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <label className="col-span-3 font-bold">Produit</label>
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <label className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Produit</label>
                     <input
                       type="text"
                       value={prodDesignation}
                       onChange={(e) => setProdDesignation(e.target.value)}
-                      placeholder="Indiquez la désignation ou le nom de l'article"
-                      className="col-span-9 h-6 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none text-xs"
+                      placeholder="Désignation ou nom de l'article"
+                      className="col-span-9 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs"
                     />
                   </div>
 
                    {/* Row split: Stock, Prix de revient indicator panel */}
-                  <div className="grid grid-cols-2 gap-2 bg-slate-200/50 p-2 border border-gray-400 rounded">
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
                     <div>
-                      <span className="block font-bold text-gray-700 text-[10px]">Quantité en stock</span>
+                      <span className="block font-bold text-slate-500 dark:text-slate-400 text-[10px] mb-1 uppercase tracking-wider">Quantité en stock</span>
                       <input
                         type="number"
                         value={prodStockEnStock}
                         readOnly={true}
-                        className="w-full h-6 px-1.5 border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center outline-none text-xs font-bold bg-slate-300 text-slate-700 cursor-not-allowed select-none"
+                        className="w-full h-8 px-3 border border-slate-200 dark:border-slate-850 font-mono text-center outline-none text-xs font-bold bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-lg cursor-not-allowed select-none"
                       />
                     </div>
                     <div>
-                      <span className="block font-bold text-gray-700 text-[10px]">Moyenne Prix de revient de base (DA)</span>
+                      <span className="block font-bold text-slate-500 dark:text-slate-400 text-[10px] mb-1 uppercase tracking-wider">Moyenne Prix Revient (DA)</span>
                       <input
                         type="number"
                         value={prodPrixDeRevient}
                         readOnly={true}
-                        className="w-full h-6 px-1.5 border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center outline-none text-xs font-bold bg-slate-300 text-slate-700 cursor-not-allowed select-none"
+                        className="w-full h-8 px-3 border border-slate-200 dark:border-slate-850 font-mono text-center outline-none text-xs font-bold bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-lg cursor-not-allowed select-none"
                       />
                     </div>
                   </div>
 
                   {/* Buying stats row inputs (Nbre colis, Colissage, Quantité) */}
-                  <div className="grid grid-cols-3 gap-2 border-t border-gray-300 pt-2 bg-slate-300/30 p-1.5 rounded">
+                  <div className="grid grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 bg-indigo-50/20 dark:bg-indigo-950/10 p-3 rounded-xl border border-indigo-100/30 dark:border-indigo-900/20">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Nbre colis</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Nbre colis</label>
                       <input
                         type="number"
                         min="0"
                         value={prodNbreColis}
                         onChange={(e) => handleNbreColisChange(e.target.value)}
-                        className="w-full h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center"
+                        className="w-full h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Colisage</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Colisage</label>
                       <input
                         type="number"
                         min="1"
                         value={prodColisage}
                         onChange={(e) => handleColisageChange(e.target.value)}
-                        className="w-full h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center outline-none"
+                        className="w-full h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Quantité d'unités</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Quantité d'unités</label>
                       <input
                         type="number"
                         min="0"
                         value={prodQtyCalculated || ''}
                         onChange={(e) => handleQtyChange(e.target.value)}
-                        className="w-full h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center text-blue-900 font-bold outline-none"
+                        className="w-full h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center text-indigo-650 dark:text-sky-400 font-bold outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Prices: Prix de revient (previous), Prix Achat, Nouveau prix de revient */}
-                  <div className="grid grid-cols-3 gap-2 border-b border-gray-300 pb-2">
+                  <div className="grid grid-cols-3 gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Prix de revient</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Ancien Revient</label>
                       <input
                         type="text"
                         value={prodPrixDeRevient ? `${prodPrixDeRevient} DA` : '0 DA'}
                         readOnly
-                        className="w-full h-6 px-1.5 bg-[#e4e0d8] border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono text-center outline-none text-xs font-bold text-gray-700 cursor-not-allowed"
+                        className="w-full h-8 px-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 font-mono text-center outline-none text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg cursor-not-allowed select-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Prix Achat unitaire</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Prix Achat unit.</label>
                       <input
                         type="number"
                         min="0"
@@ -2550,27 +2548,29 @@ export default function PurchaseVoucherWindow({
                           setProdPrixAchat(e.target.value);
                           setProdNouveauPrixRevient(e.target.value);
                         }}
-                        className="w-full h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono font-bold text-right text-red-900 text-xs outline-none"
+                        className="w-full h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-bold text-right text-rose-600 dark:text-rose-400 text-xs outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-800">Nouveau prix revient</label>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider">Nouveau Revient</label>
                       <input
                         type="text"
                         value={`${calculatedNouveauPrixRevient || '0'} DA`}
                         readOnly
-                        className="w-full h-6 px-1.5 bg-[#e4e0d8] border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono font-bold text-right text-blue-900 text-xs outline-none cursor-not-allowed"
+                        className="w-full h-8 px-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 font-mono font-bold text-right text-indigo-650 dark:text-sky-400 text-xs outline-none rounded-lg cursor-not-allowed select-none"
                       />
                     </div>
                   </div>
 
                   {/* SELL PRICES & MAGIN RULES ROW */}
-                  <div className="border border-white/40 p-2.5 bg-[#cecac3]/50 rounded flex flex-col gap-1.5">
-                    <span className="block font-sans font-bold text-blue-900 text-[11px] uppercase tracking-wider mb-1 border-b border-gray-300 pb-0.5">🚀 Tarifs de Vente & Marges</span>
+                  <div className="border border-indigo-100/50 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl flex flex-col gap-2">
+                    <span className="block font-bold text-indigo-900 dark:text-indigo-400 text-[11px] uppercase tracking-wider mb-1 pb-1 border-b border-slate-100 dark:border-slate-800/80">
+                      🚀 Tarifs de Vente & Marges
+                    </span>
                     
                     <div className="grid grid-cols-12 gap-2 items-center text-xs">
                       {/* PV 1 */}
-                      <span className="col-span-3 font-bold text-gray-700">Prix Vente 1</span>
+                      <span className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Prix Vente 1</span>
                       <input
                         type="number"
                         value={prodPrixVente1}
@@ -2580,40 +2580,40 @@ export default function PurchaseVoucherWindow({
                           setProdPrixVente2(val);
                           setProdPrixVente3(val);
                         }}
-                        className="col-span-5 h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white text-right font-bold outline-none text-xs"
+                        className="col-span-5 h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-right font-bold outline-none text-xs"
                       />
-                      <span className="col-span-1.5 font-bold text-gray-500 text-center font-sans text-[10px]">Marge:</span>
-                      <div className="col-span-2.5 h-6 bg-white/70 border border-gray-300 px-1 flex items-center justify-center font-mono font-bold text-green-905">
+                      <span className="col-span-1.5 font-semibold text-slate-400 text-center text-[10px]">Marge:</span>
+                      <div className="col-span-2.5 h-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-1.5 flex items-center justify-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
                         {calculateMarginPercent(prodPrixVente1, prodPrixAchat)}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-2 items-center text-xs">
                       {/* PV 2 */}
-                      <span className="col-span-3 font-bold text-gray-700">Prix Vente 2</span>
+                      <span className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Prix Vente 2</span>
                       <input
                         type="number"
                         value={prodPrixVente2}
                         onChange={(e) => setProdPrixVente2(e.target.value)}
-                        className="col-span-5 h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white text-right font-bold outline-none text-xs"
+                        className="col-span-5 h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-right font-bold outline-none text-xs"
                       />
-                      <span className="col-span-1.5 font-bold text-gray-500 text-center font-sans text-[10px]">Marge:</span>
-                      <div className="col-span-2.5 h-6 bg-white/70 border border-gray-300 px-1 flex items-center justify-center font-mono font-bold text-green-905">
+                      <span className="col-span-1.5 font-semibold text-slate-400 text-center text-[10px]">Marge:</span>
+                      <div className="col-span-2.5 h-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-1.5 flex items-center justify-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
                         {calculateMarginPercent(prodPrixVente2, prodPrixAchat)}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-2 items-center text-xs">
                       {/* PV 3 */}
-                      <span className="col-span-3 font-bold text-gray-700">Prix Vente 3</span>
+                      <span className="col-span-3 font-bold text-slate-600 dark:text-slate-400">Prix Vente 3</span>
                       <input
                         type="number"
                         value={prodPrixVente3}
                         onChange={(e) => setProdPrixVente3(e.target.value)}
-                        className="col-span-5 h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white text-right font-bold outline-none text-xs"
+                        className="col-span-5 h-8 px-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-right font-bold outline-none text-xs"
                       />
-                      <span className="col-span-1.5 font-bold text-gray-500 text-center font-sans text-[10px]">Marge:</span>
-                      <div className="col-span-2.5 h-6 bg-white/70 border border-gray-300 px-1 flex items-center justify-center font-mono font-bold text-green-905">
+                      <span className="col-span-1.5 font-semibold text-slate-400 text-center text-[10px]">Marge:</span>
+                      <div className="col-span-2.5 h-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-1.5 flex items-center justify-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
                         {calculateMarginPercent(prodPrixVente3, prodPrixAchat)}
                       </div>
                     </div>
@@ -2624,25 +2624,25 @@ export default function PurchaseVoucherWindow({
 
               {/* TAB 2: PLUS D'INFO */}
               {activeDialogTab === 'plus_info' && (
-                <div className="flex flex-col gap-2.5">
-                  <span className="block font-bold text-blue-900 border-b border-gray-400 pb-1 text-xs">
+                <div className="flex flex-col gap-3">
+                  <span className="block font-bold text-indigo-900 dark:text-indigo-400 border-b border-slate-100 dark:border-slate-800 pb-2 text-xs uppercase tracking-wider">
                     Informations Complémentaires
                   </span>
 
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <span className="font-bold">Aisle/Rayon</span>
+                  <div className="grid grid-cols-3 gap-3 items-center">
+                    <span className="font-bold text-slate-600 dark:text-slate-400">Rayon / Alvéole</span>
                     <input
                       type="text"
-                      className="col-span-2 h-6 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white"
+                      className="col-span-2 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       value={infoRayon}
                       onChange={(e) => setInfoRayon(e.target.value)}
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <span className="font-bold">Unité de Vente</span>
+                  <div className="grid grid-cols-3 gap-3 items-center">
+                    <span className="font-bold text-slate-600 dark:text-slate-400">Unité de Vente</span>
                     <select
-                      className="col-span-2 h-6 px-1 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white"
+                      className="col-span-2 h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       value={infoUnite}
                       onChange={(e) => setInfoUnite(e.target.value)}
                     >
@@ -2653,10 +2653,10 @@ export default function PurchaseVoucherWindow({
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <span className="font-bold">TVA Applicable</span>
+                  <div className="grid grid-cols-3 gap-3 items-center">
+                    <span className="font-bold text-slate-600 dark:text-slate-400">TVA Applicable</span>
                     <select
-                      className="col-span-2 h-6 px-1 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white"
+                      className="col-span-2 h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       value={infoTvaPercent}
                       onChange={(e) => setInfoTvaPercent(e.target.value)}
                     >
@@ -2666,65 +2666,65 @@ export default function PurchaseVoucherWindow({
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <span className="font-bold">Stock d'alerte Seuil</span>
+                  <div className="grid grid-cols-3 gap-3 items-center">
+                    <span className="font-bold text-slate-600 dark:text-slate-400">Seuil Stock d'alerte</span>
                     <input
                       type="number"
-                      className="col-span-2 h-6 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white"
+                      className="col-span-2 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       value={infoAlerteStock}
                       onChange={(e) => setInfoAlerteStock(e.target.value)}
                     />
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-300 p-2.5 rounded text-amber-900 mt-2 text-[11px] leading-tight font-sans">
-                    <strong>💡 Remarque :</strong> Ces configurations supplémentaires affectent directement les avertissements visuels de rupture de stock de l'application et la facturation finale en douane.
+                  <div className="bg-amber-50/60 dark:bg-amber-950/15 border border-amber-100 dark:border-amber-900/25 p-3 rounded-xl text-amber-900 dark:text-amber-300 mt-2 text-[11px] leading-relaxed">
+                    <strong>💡 Remarque :</strong> Ces configurations supplémentaires affectent directement les avertissements visuels de rupture de stock de l'application et la facturation finale.
                   </div>
                 </div>
               )}
 
               {/* TAB 3: PHOTO PRODUIT */}
               {activeDialogTab === 'photo' && (
-                <div className="flex flex-col gap-2.5 items-center bg-slate-350 p-4 border border-gray-400 rounded">
-                  <span className="block font-bold text-gray-800 border-b border-gray-400 pb-1 text-center w-full">
-                    Visuel Associé au Code
+                <div className="flex flex-col gap-3 items-center bg-slate-50 dark:bg-slate-950 p-5 rounded-xl border border-slate-100 dark:border-slate-850">
+                  <span className="block font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-2 text-center w-full uppercase tracking-wider text-[11px]">
+                    Visuel Associé au Produit
                   </span>
                   
-                  {/* Photo Placeholder */}
-                  <div className="w-32 h-32 bg-[#b6b2aa] border-2 border-b-white border-r-white border-t-gray-700 border-l-gray-700 flex flex-col items-center justify-center text-center p-2 text-[10px] text-gray-600 gap-1 mt-1 shadow-inner relative">
-                    <span className="text-3xl">📷</span>
-                    <span className="font-sans">Image Produit <br/>Non Définie</span>
+                  {/* Photo Preview Container */}
+                  <div className="w-36 h-36 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-3 text-[10px] text-slate-400 dark:text-slate-500 gap-1.5 mt-2 shadow-inner relative overflow-hidden">
+                    <span className="text-4xl">📷</span>
+                    <span className="font-sans leading-tight">Image Produit <br/>Non Définie</span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => alert("Simulation d'importation d'image lancée. Veuillez choisir un fichier PNG/JPEG.")}
-                    className="mt-2 px-3 h-6 bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] text-xs font-bold active:bg-gray-250 hover:bg-white"
+                    className="mt-3 px-4 h-8 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-650 dark:text-indigo-400 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-indigo-150/50 dark:border-indigo-900/30"
                   >
                     📁 Sélectionner un fichier
                   </button>
 
-                  <span className="text-[10px] text-gray-500 font-sans mt-2">Pris en charge : JPG, PNG, GIF. Max 2 Mo.</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans mt-2">Pris en charge : JPG, PNG, GIF. Max 2 Mo.</span>
                 </div>
               )}
 
             </div>
 
             {/* Modal Footer Controls */}
-            <div className="bg-[#d4d0c8] p-2 flex justify-end gap-1.5 border-t border-gray-400">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={handleSaveProductFromModal}
-                className="px-4 h-7 text-xs font-bold bg-[#d4d0c8] text-green-900 border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] flex items-center gap-1 hover:bg-green-150"
+                onClick={() => setIsProductDialogOpen(false)}
+                className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1"
               >
-                <span>✔ OK</span>
+                <span>✕ Annuler</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setIsProductDialogOpen(false)}
-                className="px-4 h-7 text-xs font-bold bg-[#d4d0c8] text-red-900 border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] flex items-center gap-1 hover:bg-red-150"
+                onClick={handleSaveProductFromModal}
+                className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-md"
               >
-                <span>✕ ANNULER</span>
+                <span>✔ Valider l'insertion</span>
               </button>
             </div>
 
@@ -2732,24 +2732,27 @@ export default function PurchaseVoucherWindow({
         </div>
       )}
 
-      {/* SUPPLIER SELECTOR MODAL (Retro Windows style) */}
+      {/* SUPPLIER SELECTOR MODAL */}
       {isSupplierSelectOpen && (
-        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-[60] p-4 text-xs font-sans text-slate-800">
-          <div className="bg-[#d4d0c8] w-[460px] border-2 border-t-white border-l-white border-b-black border-r-black shadow-lg flex flex-col p-1">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-[2px]">
+          <div className="w-[460px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
+            
             {/* Header */}
-            <div className="bg-[#000080] text-white px-2 py-1 font-bold flex justify-between items-center select-none text-xs">
-              <span className="flex items-center gap-1">📁 Initialisation : Choisir ou Créer un Fournisseur</span>
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center select-none">
+              <span className="flex items-center gap-2 font-bold text-sm text-slate-850 dark:text-slate-200">
+                <span>👥</span> INITIALISATION DU BON D'ACHAT
+              </span>
               <button 
                 type="button"
                 onClick={() => setIsSupplierSelectOpen(false)}
-                className="w-4 h-4 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-black border-r-black flex items-center justify-center font-bold text-[9px] hover:bg-red-400 hover:text-white"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Sub-banner description */}
-            <div className="bg-sky-50 text-sky-950 px-3 py-2 border-b border-gray-400 select-none text-[11px] leading-tight flex gap-2">
+            <div className="bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-900 dark:text-indigo-300 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60 select-none leading-relaxed flex gap-2 text-[11px]">
               <span className="text-sm">ℹ️</span>
               <div>
                 <strong>Nouveau Bon d'Achat :</strong> Veuillez sélectionner un fournisseur existant ou en créer un nouveau à la volée pour continuer.
@@ -2757,14 +2760,14 @@ export default function PurchaseVoucherWindow({
             </div>
 
             {/* Type selector tabs */}
-            <div className="flex bg-[#d4d0c8] border-b border-gray-400 pt-1.5 px-1.5 gap-1 select-none">
+            <div className="flex bg-slate-50 dark:bg-slate-950 border-b border-slate-250 dark:border-slate-800 px-4 pt-1.5 gap-1.5 select-none">
               <button
                 type="button"
                 onClick={() => setSupplierSelectType('existing')}
-                className={`px-3 py-1 font-bold border-t border-l border-r rounded-t text-[11px] ${
+                className={`px-4 py-2 text-center font-semibold text-xs border-b-2 transition-all select-none cursor-pointer ${
                   supplierSelectType === 'existing'
-                    ? 'bg-[#d4d0c8] border-white border-b-transparent text-slate-900 z-10 -mb-[1px]'
-                    : 'bg-[#b6b2aa] border-t-gray-100 border-l-gray-100 border-r-gray-400 text-gray-700 hover:bg-gray-250'
+                    ? 'border-indigo-600 text-indigo-650 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 👥 Fournisseur existant
@@ -2773,38 +2776,38 @@ export default function PurchaseVoucherWindow({
               <button
                 type="button"
                 onClick={() => setSupplierSelectType('new')}
-                className={`px-3 py-1 font-bold border-t border-l border-r rounded-t text-[11px] ${
+                className={`px-4 py-2 text-center font-semibold text-xs border-b-2 transition-all select-none cursor-pointer ${
                   supplierSelectType === 'new'
-                    ? 'bg-[#d4d0c8] border-white border-b-transparent text-slate-900 z-10 -mb-[1px]'
-                    : 'bg-[#b6b2aa] border-t-gray-100 border-l-gray-100 border-r-gray-400 text-gray-700 hover:bg-gray-250'
+                    ? 'border-indigo-600 text-indigo-650 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                ➕ Créer un nouveau fournisseur
+                ➕ Nouveau fournisseur
               </button>
             </div>
 
-            {/* Tab body container with vintage Bevel style */}
-            <div className="p-3 bg-[#d4d0c8] border border-white border-t-transparent shadow-[inset_-1px_-1px_rgba(0,0,0,0.1),inset_1px_1px_white] flex-1">
+            {/* Tab body container */}
+            <div className="p-5 bg-white dark:bg-slate-900 flex-1">
               
               {/* TAB 1: EXISTING SUPPLIER */}
               {supplierSelectType === 'existing' && (
-                <div className="flex flex-col gap-2.5">
-                  <span className="text-gray-700 font-bold block text-[11px]">Choisissez parmi la liste :</span>
+                <div className="flex flex-col gap-3">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Choisissez parmi la liste :</span>
                   {suppliers.length === 0 ? (
-                    <div className="bg-yellow-50 border border-yellow-300 p-3 rounded text-yellow-905 text-[11px] leading-tight font-sans">
+                    <div className="bg-amber-50/60 dark:bg-amber-950/15 border border-amber-100 dark:border-amber-900/25 p-3.5 rounded-xl text-amber-900 dark:text-amber-300 text-[11px] leading-relaxed">
                       ⚠️ Aucun fournisseur disponible dans votre base. <br/>
-                      Veuillez cliquer sur le deuxième onglet <strong>"Créer un nouveau fournisseur"</strong> pour l'ajouter directement.
+                      Veuillez cliquer sur l'onglet <strong>"Nouveau fournisseur"</strong> pour l'ajouter directement.
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       <select
                         value={existingSupplierSelected}
                         onChange={(e) => setExistingSupplierSelected(e.target.value)}
-                        className="w-full h-8 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white text-xs outline-none font-bold text-blue-900"
+                        className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none font-bold text-slate-800 dark:text-slate-100"
                       >
                         {suppliers.map(s => (
                           <option key={s.id} value={s.name}>
-                            {s.code} - {s.name} (Solde: {(s.balance ?? 0).toLocaleString('fr-FR')} DA)
+                            {s.code} — {s.name} (Solde: {(s.balance ?? 0).toLocaleString('fr-FR')} DA)
                           </option>
                         ))}
                       </select>
@@ -2815,27 +2818,27 @@ export default function PurchaseVoucherWindow({
 
               {/* TAB 2: REGISTER NEW SUPPLIER ON THE FLY */}
               {supplierSelectType === 'new' && (
-                <div className="flex flex-col gap-2.5 font-sans">
-                  <span className="text-blue-900 font-bold block text-[11px] border-b border-gray-300 pb-0.5">🚀 Enregistrement Rapide Fournisseur</span>
+                <div className="flex flex-col gap-3">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold block text-[10px] uppercase tracking-wider mb-1">Enregistrement Rapide Fournisseur</span>
                   
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <label className="col-span-4 font-bold text-gray-700">Code Fournisseur</label>
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <label className="col-span-4 font-bold text-slate-600 dark:text-slate-400">Code</label>
                     <input
                       type="text"
                       value={quickSupplierCode}
                       onChange={(e) => setQuickSupplierCode(e.target.value)}
-                      className="col-span-8 h-6 px-2 bg-gray-250 border border-t-[#808080] border-l-[#808080] border-b-white border-r-white font-mono font-bold outline-none text-xs text-blue-900"
+                      className="col-span-8 h-8 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 font-mono font-bold outline-none text-xs text-indigo-650 dark:text-indigo-400 rounded-xl"
                     />
                   </div>
 
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <label className="col-span-4 font-bold text-gray-700">Nom / Raison Sociale <span className="text-red-650">*</span></label>
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <label className="col-span-4 font-bold text-slate-600 dark:text-slate-400">Nom / Raison <span className="text-rose-600 dark:text-rose-450">*</span></label>
                     <input
                       type="text"
                       placeholder="Ex: LARBI HAMIZ"
                       value={quickSupplierName}
                       onChange={(e) => setQuickSupplierName(e.target.value)}
-                      className="col-span-8 h-6 px-2 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none font-bold text-xs"
+                      className="col-span-8 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs"
                     />
                   </div>
                 </div>
@@ -2844,22 +2847,22 @@ export default function PurchaseVoucherWindow({
             </div>
 
             {/* Modal Footer Controls */}
-            <div className="bg-[#d4d0c8] p-2 flex justify-end gap-1.5 border-t border-gray-400 select-none">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 select-none">
               <button
                 type="button"
-                onClick={handleConfirmSupplierForVoucher}
-                disabled={supplierSelectType === 'existing' && suppliers.length === 0}
-                className="px-4 h-7 text-xs font-bold bg-[#d4d0c8] text-green-905 border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] flex items-center gap-1 hover:bg-green-150 disabled:opacity-50"
+                onClick={() => setIsSupplierSelectOpen(false)}
+                className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1"
               >
-                <span>✔ Créer le bon</span>
+                <span>✕ Annuler</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setIsSupplierSelectOpen(false)}
-                className="px-4 h-7 text-xs font-bold bg-[#d4d0c8] text-red-905 border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] flex items-center gap-1 hover:bg-red-150"
+                onClick={handleConfirmSupplierForVoucher}
+                disabled={supplierSelectType === 'existing' && suppliers.length === 0}
+                className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-md disabled:opacity-50"
               >
-                <span>✕ Annuler</span>
+                <span>✔ Créer le bon</span>
               </button>
             </div>
 
@@ -3008,60 +3011,60 @@ export default function PurchaseVoucherWindow({
         </div>
       )}
 
-      {/* -------------------- CUSTOM RETRO CONFIRM / ALERT DIALOG BOX -------------------- */}
+      {/* -------------------- CUSTOM CONFIRM / ALERT DIALOG BOX -------------------- */}
       {retroDialog.isOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] select-none">
-          <div className="w-[420px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] p-0.5 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-[2px] select-none">
+          <div className="w-[420px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
             
-            {/* Dialog Blue Title Bar */}
-            <div className="bg-[#000080] text-white px-2 py-1 flex items-center justify-between font-bold text-xs">
-              <span className="flex items-center gap-1.5">
+            {/* Dialog Title Bar */}
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between font-bold">
+              <span className="flex items-center gap-2 text-slate-850 dark:text-slate-200">
                 <span>📁</span>
                 <span>{retroDialog.title}</span>
               </span>
               <button
                 onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                className="w-4 h-4 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-b-white active:border-r-white flex items-center justify-center font-bold text-[9px] cursor-default focus:outline-none"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Dialog Contents */}
-            <div className="p-4 flex gap-4 text-xs font-bold text-slate-800 items-start select-text leading-relaxed bg-gray-50/50 m-1 border-t border-b border-t-[#808080] border-b-[#ffffff] border-l-[#808080] border-r-[#ffffff]">
+            <div className="p-5 flex gap-4 text-xs font-bold text-slate-700 dark:text-slate-300 items-start select-text leading-relaxed bg-white dark:bg-slate-900 m-1">
               {/* Question / Icon */}
               <div className="text-3xl select-none flex-shrink-0">
                 {retroDialog.type === 'confirm' ? '❓' : '⚠️'}
               </div>
-              <div className="flex-1 whitespace-pre-wrap pt-1 select-all selection:bg-[#000080] selection:text-white">
+              <div className="flex-1 whitespace-pre-wrap pt-1 selection:bg-indigo-200 dark:selection:bg-indigo-900">
                 {retroDialog.message}
               </div>
             </div>
 
             {/* Dialog Action Buttons */}
-            <div className="p-2 flex justify-end gap-2 bg-[#d4d0c8]">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 select-none">
               {retroDialog.type === 'confirm' ? (
                 <>
+                  <button
+                    onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
+                    className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Non (Annuler)
+                  </button>
                   <button
                     onClick={() => {
                       if (retroDialog.onConfirm) retroDialog.onConfirm();
                       setRetroDialog(prev => ({ ...prev, isOpen: false }));
                     }}
-                    className="px-5 h-7 text-xs font-semibold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm"
+                    className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-md"
                   >
                     Oui
-                  </button>
-                  <button
-                    onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                    className="px-5 h-7 text-xs font-semibold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm"
-                  >
-                    Non (Annuler)
                   </button>
                 </>
               ) : (
                 <button
                   onClick={() => setRetroDialog(prev => ({ ...prev, isOpen: false }))}
-                  className="px-6 h-7 text-xs font-semibold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm"
+                  className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-md"
                 >
                   OK (Valider)
                 </button>
@@ -3072,39 +3075,41 @@ export default function PurchaseVoucherWindow({
         </div>
       )}
 
-      {/* ==================== VINTAGE MANAGE FAMILIES DIALOG ==================== */}
+      {/* ==================== MANAGE FAMILIES DIALOG ==================== */}
       {isManagingFamilies && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[100] p-2 backdrop-blur-[1px]">
-          <div className="w-[430px] bg-[#d4d0c8] border-2 border-t-white border-l-white border-b-[#404040] border-r-[#404040] shadow-2xl flex flex-col p-[2px] font-mono text-xs text-black">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-[2px]">
+          <div className="w-[430px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-150">
             
             {/* Title bar */}
-            <div className="bg-[#000080] text-white font-sans font-bold px-1.5 py-1 flex justify-between items-center select-none">
-              <span className="flex items-center gap-1">🏷️ GÉRER LES FAMILLES</span>
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center select-none">
+              <span className="flex items-center gap-2 font-bold text-sm text-slate-850 dark:text-slate-200">
+                <span>🏷️</span> GÉRER LES FAMILLES
+              </span>
               <button 
                 onClick={() => {
                   setIsManagingFamilies(false);
                   setNewFamilyInputName('');
                   setEditingFamilyName(null);
                 }}
-                className="w-4 h-4 bg-[#d4d0c8] text-black font-extrabold flex items-center justify-center border border-white hover:bg-red-500 hover:text-white"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Content area with inset vintage border */}
-            <div className="p-3 bg-[#d4d0c8] border border-white border-t-transparent shadow-[inset_-1px_-1px_rgba(0,0,0,0.1),inset_1px_1px_white] flex-1 flex flex-col gap-3">
+            {/* Content area */}
+            <div className="p-5 flex-1 flex flex-col gap-4">
               
               {/* Quick Add Section */}
-              <div className="p-2 border border-t-[#808080] border-l-[#808080] border-b-white border-r-white bg-gray-100 flex flex-col gap-1">
-                <span className="font-bold text-[10px] text-blue-900">AJOUTER UNE FAMILLE:</span>
-                <div className="flex gap-1.5">
+              <div className="p-3 bg-slate-50 dark:bg-slate-950/45 rounded-xl border border-slate-150/10 flex flex-col gap-1.5">
+                <span className="font-bold text-[10px] text-indigo-900 dark:text-indigo-400 uppercase tracking-wider">Ajouter une famille :</span>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Ex: HUILES, LAITAGES..."
                     value={newFamilyInputName}
                     onChange={(e) => setNewFamilyInputName(e.target.value)}
-                    className="flex-1 h-6 px-1.5 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none text-xs font-bold text-slate-800 uppercase"
+                    className="flex-1 h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs font-bold text-slate-800 dark:text-slate-100 uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -3133,7 +3138,7 @@ export default function PurchaseVoucherWindow({
                         setNewFamilyInputName('');
                       }
                     }}
-                    className="px-3 h-6 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 text-xs font-bold"
+                    className="px-4 bg-indigo-650 hover:bg-indigo-700 text-white font-bold h-8 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center shadow-md"
                   >
                     Ajouter
                   </button>
@@ -3141,28 +3146,28 @@ export default function PurchaseVoucherWindow({
               </div>
 
               {/* Families List */}
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-[10px] text-slate-600">FAMILLES ENREGISTRÉES ({familles.length}):</span>
+              <div className="flex flex-col gap-2">
+                <span className="font-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Familles enregistrées ({familles.length}) :</span>
                 
-                <div className="max-h-[180px] overflow-y-auto bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white p-1">
+                <div className="max-h-[180px] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2 flex flex-col gap-1.5 divide-y divide-slate-100 dark:divide-slate-850/40">
                   {familles.length === 0 ? (
-                    <div className="p-4 text-center text-slate-400 italic">Aucune famille enregistrée.</div>
+                    <div className="p-6 text-center text-slate-400 dark:text-slate-500 italic">Aucune famille enregistrée.</div>
                   ) : (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       {familles.map((fam) => {
                         const isEditingThis = editingFamilyName === fam;
                         return (
                           <div 
                             key={fam}
-                            className="flex items-center justify-between p-1 bg-slate-100 border border-slate-300 rounded"
+                            className="flex items-center justify-between py-1.5 px-2 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 rounded-lg transition-colors border border-slate-100/50 dark:border-slate-850/45"
                           >
                             {isEditingThis ? (
-                              <div className="flex-1 flex gap-1 items-center">
+                              <div className="flex-1 flex gap-2 items-center">
                                 <input
                                   type="text"
                                   value={editingFamilyValue}
                                   onChange={(e) => setEditingFamilyValue(e.target.value)}
-                                  className="flex-1 h-5 px-1 bg-white border border-t-[#808080] border-l-[#808080] border-b-white border-r-white outline-none font-bold uppercase text-xs"
+                                  className="flex-1 h-7 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold uppercase text-xs"
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -3180,31 +3185,31 @@ export default function PurchaseVoucherWindow({
                                     handleRenameFamily(fam, editingFamilyValue);
                                     setEditingFamilyName(null);
                                   }}
-                                  className="w-5 h-5 bg-green-100 text-green-800 border border-white border-b-green-800 border-r-green-800 flex items-center justify-center font-bold text-[10px]"
+                                  className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/35 text-emerald-650 dark:text-emerald-450 flex items-center justify-center font-bold text-xs cursor-pointer border border-emerald-100/30"
                                 >
                                   ✔
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingFamilyName(null)}
-                                  className="w-5 h-5 bg-red-100 text-red-800 border border-white border-b-red-800 border-r-red-800 flex items-center justify-center font-bold text-[10px]"
+                                  className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/35 text-rose-650 dark:text-rose-400 flex items-center justify-center font-bold text-xs cursor-pointer border border-rose-100/30"
                                 >
                                   ✕
                                 </button>
                               </div>
                             ) : (
                               <>
-                                <span className="font-bold text-slate-800 uppercase pl-1 truncate max-w-[200px]">
+                                <span className="font-bold text-slate-800 dark:text-slate-200 uppercase pl-1 truncate max-w-[200px]">
                                   {fam}
                                 </span>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setEditingFamilyName(fam);
                                       setEditingFamilyValue(fam);
                                     }}
-                                    className="px-1.5 h-5 bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 text-[10px]"
+                                    className="px-2.5 h-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] transition-colors cursor-pointer"
                                     title="Renommer la famille"
                                   >
                                     Renommer
@@ -3217,7 +3222,7 @@ export default function PurchaseVoucherWindow({
                                           handleDeleteFamily(fam);
                                           setConfirmDeleteFam(null);
                                         }}
-                                        className="px-1.5 h-5 bg-red-600 text-white border border-t-red-300 border-l-red-300 border-b-red-800 border-r-red-800 font-bold text-[10px]"
+                                        className="px-2.5 h-6 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg cursor-pointer"
                                         title="Confirmer la suppression"
                                       >
                                         Oui
@@ -3225,7 +3230,7 @@ export default function PurchaseVoucherWindow({
                                       <button
                                         type="button"
                                         onClick={() => setConfirmDeleteFam(null)}
-                                        className="px-1.5 h-5 bg-gray-200 text-black border border-t-white border-l-white border-b-black border-r-black active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-300 text-[10px]"
+                                        className="px-2.5 h-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] cursor-pointer"
                                       >
                                         Non
                                       </button>
@@ -3236,7 +3241,7 @@ export default function PurchaseVoucherWindow({
                                       onClick={() => {
                                         setConfirmDeleteFam(fam);
                                       }}
-                                      className="px-1.5 h-5 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 text-[10px]"
+                                      className="px-2.5 h-6 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-lg text-[10px] transition-colors cursor-pointer border border-rose-100/35"
                                       title="Supprimer la famille"
                                     >
                                       Suppr.
@@ -3256,14 +3261,14 @@ export default function PurchaseVoucherWindow({
             </div>
 
             {/* Dialog buttons block */}
-            <div className="p-2 flex justify-end gap-2 bg-[#d4d0c8] border-t border-gray-300">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => {
                   setIsManagingFamilies(false);
                   setNewFamilyInputName('');
                   setEditingFamilyName(null);
                 }}
-                className="px-6 h-7 text-xs font-semibold bg-[#d4d0c8] text-black border border-t-white border-l-white border-b-[#404040] border-r-[#404040] active:border-b-white active:border-r-white active:border-t-[#404040] active:border-l-[#404040] hover:bg-gray-200 focus:outline-none shadow-sm"
+                className="px-5 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Fermer
               </button>

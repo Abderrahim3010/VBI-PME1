@@ -1000,51 +1000,51 @@ export default function App() {
                 Fichier
               </button>
               {fichierDropdownOpen && (
-                <div className="absolute left-0 mt-1 w-64 bg-[#f0ede6] dark:bg-slate-900 border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] shadow-2xl rounded-sm z-[2000] py-1 text-black dark:text-white font-sans font-medium">
+                <div className="absolute left-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-1.5 z-[2000] text-slate-800 dark:text-slate-100 font-sans font-medium animate-in fade-in slide-in-from-top-1 duration-100">
                   <button
                     onClick={() => { setFichierDropdownOpen(false); alert("Dossier chargé avec succès !"); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>📁 <u>C</u>harger un dossier</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); window.location.reload(); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>🔄 <u>A</u>ctualisation du tableau de bord</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); alert("Tous les registres et bons ont été enregistrés localement."); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>💾 Enregistrer (<u>E</u>)</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); const filename = prompt("Nom de la sauvegarde :", "sauvegarde_pme.vbi"); if (filename) alert(`Enregistré sous ${filename}`); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>💾 Enregistrer <u>s</u>ous</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); alert("Données synchronisées avec succès ! Envoyées au Terminal Mobile."); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span>📱 En<u>v</u>oyer les données au Terminal Mobile</span>
+                    <span>📱 En<u>v</u>oyer au Terminal Mobile</span>
                   </button>
                   
-                  <hr className="my-1 border-slate-300 dark:border-slate-800" />
+                  <hr className="my-1 border-slate-100 dark:border-slate-800/65" />
                   
                   <button
                     onClick={() => { setFichierDropdownOpen(false); launchWindow('configuration'); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>🔧 <u>C</u>onfiguration</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); handleLockSession(); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between font-bold text-blue-900 dark:text-blue-400"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between font-bold text-indigo-650 dark:text-indigo-400 transition-colors cursor-pointer"
                   >
-                    <span>🔒 <u>V</u>errouiller/changer utilisateur</span>
+                    <span>🔒 <u>V</u>errouiller session</span>
                   </button>
                   <button
                     onClick={() => { 
@@ -1062,22 +1062,22 @@ export default function App() {
                         alert("Mot de passe actuel incorrect.");
                       }
                     }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <span>🔑 Changer le <u>m</u>ot de passe</span>
                   </button>
                   <button
                     onClick={() => { setFichierDropdownOpen(false); launchWindow('user_management'); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-[#000080] hover:text-white text-[12px] flex items-center justify-between font-extrabold text-red-850 dark:text-red-450"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[12px] flex items-center justify-between font-extrabold text-red-650 dark:text-red-400 transition-colors cursor-pointer"
                   >
                     <span>👥 <u>G</u>estion des utilisateurs</span>
                   </button>
                   
-                  <hr className="my-1 border-slate-300 dark:border-slate-800" />
+                  <hr className="my-1 border-slate-100 dark:border-slate-800/65" />
                   
                   <button
                     onClick={() => { setFichierDropdownOpen(false); handleLockSession(); }}
-                    className="w-full text-left px-4 py-1.5 hover:bg-red-700 hover:text-white text-[12px] flex items-center justify-between font-bold"
+                    className="w-full text-left px-4 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-650 dark:text-rose-400 rounded-xl text-[12px] flex items-center justify-between font-bold transition-colors cursor-pointer"
                   >
                     <span>🚪 <u>Q</u>uitter</span>
                   </button>
@@ -1905,48 +1905,49 @@ export default function App() {
       )}
 
       {unauthorizedModal && unauthorizedModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] select-none animate-in fade-in zoom-in duration-100">
-          <div className="bg-[#f0ede6] dark:bg-slate-900 border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] p-1.5 w-[420px] shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-[2px] select-none animate-in fade-in zoom-in duration-100">
+          <div className="w-[420px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden font-sans text-xs">
+            
             {/* Title bar */}
-            <div className="bg-[#000080] dark:bg-slate-850 px-2 py-1 flex items-center justify-between text-white font-sans font-bold text-[12px]">
-              <span className="flex items-center gap-1.5">
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-bold">
+              <span className="flex items-center gap-2 text-slate-850 dark:text-slate-200">
                 🛡️ Sécurité Système - Accès Refusé
               </span>
               <button 
                 onClick={() => setUnauthorizedModal(null)}
-                className="w-4.5 h-4.5 bg-[#f0ede6] border border-t-white border-l-white border-r-[#808080] border-b-[#808080] text-black font-extrabold flex items-center justify-center text-[10px] hover:bg-slate-200 active:bg-slate-300 cursor-pointer"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
               >
                 ✕
               </button>
             </div>
             
             {/* Content area */}
-            <div className="p-4 flex gap-4 bg-[#f0ede6] dark:bg-slate-900 text-black dark:text-white font-sans text-[12px] items-start">
+            <div className="p-5 flex gap-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 items-start">
               <div className="text-3xl shrink-0 select-none">
                 🚫
               </div>
               <div className="flex-1 flex flex-col gap-1.5 leading-relaxed">
-                <p className="font-extrabold text-[13px] text-red-700 dark:text-red-400">
-                  AUTORISATION INSUFFISANTE !
+                <p className="font-extrabold text-[13px] text-red-700 dark:text-red-400 uppercase tracking-wide">
+                  Autorisation insuffisante !
                 </p>
                 <p>
                   Votre compte utilisateur <strong>👤 {currentUser?.username}</strong> ne dispose pas des privilèges requis pour accéder au module :
                 </p>
-                <p className="bg-white/50 dark:bg-black/30 p-1.5 rounded border border-slate-350 dark:border-slate-800 font-bold text-blue-900 dark:text-sky-300">
+                <p className="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150/10 font-bold text-slate-800 dark:text-sky-300 font-mono">
                   📁 {unauthorizedModal.moduleName} (Code: {unauthorizedModal.code})
                 </p>
-                <p className="text-slate-500 text-[10.5px]">
+                <p className="text-slate-400 dark:text-slate-500 text-[10.5px]">
                   Veuillez contacter l'administrateur principal ('admin') pour modifier vos habilitations.
                 </p>
               </div>
             </div>
             
             {/* Action buttons */}
-            <div className="bg-[#f0ede6] dark:bg-slate-900 py-2 border-t border-slate-300 dark:border-slate-800 flex justify-end px-3">
+            <div className="bg-slate-50 dark:bg-slate-950 p-3 px-5 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 select-none">
               <button
                 id="btn-unauth-ok"
                 onClick={() => setUnauthorizedModal(null)}
-                className="px-6 py-1 bg-[#f0ede6] dark:bg-slate-800 text-black dark:text-white font-bold font-sans text-[12px] border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] active:border-t-[#808080] active:border-l-[#808080] active:border-r-white active:border-b-white hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer shadow-sm"
+                className="px-5 h-8 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center shadow-md"
               >
                 D'accord (OK)
               </button>

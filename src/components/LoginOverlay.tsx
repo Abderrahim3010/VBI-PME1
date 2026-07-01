@@ -48,60 +48,52 @@ export const LoginOverlay: React.FC<LoginOverlayProps> = ({ users, onLoginSucces
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[9999] font-sans">
-      {/* 3D Retro Window Container */}
-      <div className="w-[380px] bg-[#d4d0c8] text-black border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] shadow-2xl overflow-hidden select-none animate-in fade-in zoom-in-95 duration-100">
+      {/* Modern Window Container */}
+      <div className="w-[380px] bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-2xl overflow-hidden select-none animate-in fade-in zoom-in-95 duration-100">
         
-        {/* Title Bar - Windows 95/98 Blue Gradient Style */}
-        <div className="bg-gradient-to-r from-[#000080] to-[#1084d0] px-2 py-1 flex items-center justify-between text-white font-bold text-[13px] tracking-wide select-none">
-          <div className="flex items-center gap-1.5">
-            <span className="text-base leading-none">🔑</span>
-            <span>Mot de Passe</span>
+        {/* Title Bar - Modern Clean Style */}
+        <div className="bg-slate-50 dark:bg-slate-950/40 px-4 py-3 flex items-center justify-between text-slate-800 dark:text-slate-100 font-bold text-sm border-b border-slate-100 dark:border-slate-800/60 select-none">
+          <div className="flex items-center gap-2">
+            <span className="text-base shrink-0 select-none bg-indigo-50 dark:bg-indigo-950/40 w-6 h-6 rounded-lg flex items-center justify-center">
+              🔑
+            </span>
+            <span className="font-display tracking-tight font-bold text-slate-900 dark:text-slate-100">
+              Mot de Passe
+            </span>
           </div>
-          {/* Retro Close Button [X] */}
+          {/* Modern Close Button */}
           <button 
             onClick={handleCancel}
-            className="w-[16px] h-[14px] bg-[#d4d0c8] text-black font-extrabold flex items-center justify-center text-[10px] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white focus:outline-none cursor-pointer"
+            className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none cursor-pointer"
           >
             ✕
           </button>
         </div>
 
         {/* Content area */}
-        <div className="p-4 bg-[#d4d0c8] flex flex-col gap-3.5 relative">
-          
-          {/* Safe box decorative retro widget */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-14 h-10 bg-[#b8b4a6] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] flex items-center justify-center shadow-md hidden">
-            🔒
-          </div>
-
-          <div className="flex justify-between items-start">
-            <div className="flex-1 flex flex-col gap-3.5">
+        <div className="p-5 flex flex-col gap-4 relative">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1 flex flex-col gap-4">
               {/* Dropdown "Utilisateur" */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[12px] font-bold text-slate-800 tracking-wide">Utilisateur</label>
-                <div className="relative">
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => {
-                      setSelectedUser(e.target.value);
-                      setErrorMsg('');
-                    }}
-                    className="w-full h-6 px-1.5 text-[13px] font-mono bg-white text-black border-2 border-b-white border-r-white border-t-[#808080] border-l-[#808080] focus:outline-none focus:ring-0 appearance-none cursor-default"
-                  >
-                    {users.map(u => (
-                      <option key={u.id} value={u.username}>{u.username}</option>
-                    ))}
-                  </select>
-                  {/* Custom Arrow */}
-                  <div className="absolute right-0.5 top-0.5 bottom-0.5 w-5 bg-[#d4d0c8] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] flex items-center justify-center text-[9px] pointer-events-none active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white">
-                    ▼
-                  </div>
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Utilisateur</label>
+                <select
+                  value={selectedUser}
+                  onChange={(e) => {
+                    setSelectedUser(e.target.value);
+                    setErrorMsg('');
+                  }}
+                  className="w-full h-9 px-3 text-sm bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-850 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer font-sans"
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.username}>{u.username}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Input "Mot de Passe" */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[12px] font-bold text-slate-800 tracking-wide">Mot de Passe</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Mot de Passe</label>
                 <input
                   type="password"
                   value={password}
@@ -113,15 +105,15 @@ export const LoginOverlay: React.FC<LoginOverlayProps> = ({ users, onLoginSucces
                     if (e.key === 'Enter') handleOk();
                   }}
                   autoFocus
-                  className="w-full h-6 px-1.5 text-[13px] bg-white text-black border-2 border-b-white border-r-white border-t-[#808080] border-l-[#808080] focus:outline-none focus:ring-0"
+                  className="w-full h-9 px-3 text-sm bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-850 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-sans"
                 />
               </div>
             </div>
 
-            {/* Retro gold keys decoration illustration */}
-            <div className="w-16 h-16 flex items-center justify-center relative ml-4 shrink-0 bg-slate-100/30 dark:bg-slate-800/20 rounded-xl border border-slate-300 dark:border-slate-700/50 p-2 shadow-inner">
+            {/* Premium key graphic */}
+            <div className="w-16 h-16 flex items-center justify-center relative shrink-0 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 rounded-2xl border border-slate-100 dark:border-slate-850 p-2 shadow-inner">
               <div className="relative w-12 h-12 flex items-center justify-center">
-                <Lock className="w-9 h-9 text-slate-700 dark:text-slate-300 absolute top-0 left-0" />
+                <Lock className="w-9 h-9 text-slate-400 dark:text-slate-600 absolute top-0 left-0" />
                 <Key className="w-7 h-7 text-amber-500 dark:text-amber-400 absolute bottom-0 right-0 rotate-[135deg]" />
               </div>
             </div>
@@ -129,30 +121,25 @@ export const LoginOverlay: React.FC<LoginOverlayProps> = ({ users, onLoginSucces
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="text-red-700 font-bold text-[11.5px] mt-1 bg-red-100 border border-red-300 p-1.5 rounded text-center select-text">
+            <div className="text-rose-600 dark:text-rose-400 font-semibold text-xs mt-1 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-2 rounded-xl text-center select-text animate-in fade-in duration-100">
               ⚠️ {errorMsg}
             </div>
           )}
         </div>
 
-        {/* Textured bottom panel - Matches Windows 98 textured look with nice light/shadow line */}
-        <div 
-          className="p-3.5 bg-[#c0bab0] border-t-2 border-t-[#f0f0f0] flex items-center justify-center gap-4.5"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 2px, transparent 2px, transparent 4px)',
-          }}
-        >
-          <button
-            onClick={handleOk}
-            className="w-24 h-7 bg-[#d4d0c8] text-black font-bold text-[12px] border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white hover:bg-[#eae6df] transition-colors focus:outline-none cursor-pointer"
-          >
-            Ok
-          </button>
+        {/* Bottom panel */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-2.5">
           <button
             onClick={handleCancel}
-            className="w-24 h-7 bg-[#d4d0c8] text-black font-bold text-[12px] border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white hover:bg-[#eae6df] transition-colors focus:outline-none cursor-pointer"
+            className="px-5 h-9 bg-slate-150 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors focus:outline-none cursor-pointer"
           >
             Annuler
+          </button>
+          <button
+            onClick={handleOk}
+            className="px-6 h-9 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors focus:outline-none cursor-pointer"
+          >
+            Ok
           </button>
         </div>
 

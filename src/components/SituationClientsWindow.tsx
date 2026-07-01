@@ -59,6 +59,8 @@ export default function SituationClientsWindow({
   const [editingPayment, setEditingPayment] = useState<ClientPayment | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isClientChooserOpen, setIsClientChooserOpen] = useState(false);
+  const [chooserSearch, setChooserSearch] = useState('');
 
   // Payment Form States
   const [formAmount, setFormAmount] = useState<number>(0);
@@ -466,6 +468,19 @@ export default function SituationClientsWindow({
         
         <div className="flex flex-wrap items-center gap-2">
           
+          {/* Sélectionner un client Button */}
+          <button 
+            type="button"
+            onClick={() => setIsClientChooserOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 h-8 bg-emerald-50 dark:bg-slate-800 border border-emerald-100 dark:border-slate-700 text-emerald-800 dark:text-emerald-355 rounded-lg hover:bg-emerald-100 dark:hover:bg-slate-750 font-extrabold text-[10px] uppercase select-none cursor-pointer hover:scale-103 transition-all"
+            title="Sélectionner un client"
+          >
+            <span className="text-sm">👥</span>
+            <span>Sélectionner un client</span>
+          </button>
+
+          <div className="h-5 w-[1px] bg-slate-300 dark:bg-slate-800 mx-1" />
+
           {/* Label selector */}
           <span className="font-extrabold text-slate-700 dark:text-slate-300 tracking-tight select-none">
             Client actif :
@@ -543,7 +558,7 @@ export default function SituationClientsWindow({
           
           <button
             onClick={handleOpenAddPayment}
-            className="flex items-center gap-1.5 px-3 h-8 bg-emerald-650 hover:bg-emerald-700 text-white font-extrabold rounded shadow-sm border border-emerald-700 hover:scale-102 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded shadow-sm border border-emerald-700 hover:scale-102 transition-all cursor-pointer"
           >
             <Plus size={14} className="stroke-[3]" />
             <span>Versement (Credit)</span>
@@ -1092,6 +1107,161 @@ export default function SituationClientsWindow({
                 className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 font-bold text-xs rounded-lg transition-all cursor-pointer"
               >
                 Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODERN CLIENT SELECTOR MODAL (NON-RETRO) */}
+      {isClientChooserOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center z-[100] p-4 text-xs font-sans text-slate-800 dark:text-slate-100 select-none">
+          <div className="w-[600px] max-w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-emerald-600 dark:bg-slate-950 px-5 py-4 flex items-center justify-between select-none">
+              <span className="text-white font-bold text-sm flex items-center gap-2">
+                👥 Sélectionner un Client
+              </span>
+              <button 
+                onClick={() => {
+                  setIsClientChooserOpen(false);
+                  setChooserSearch('');
+                }}
+                className="w-7 h-7 bg-white/10 text-white rounded-full flex items-center justify-center font-bold hover:bg-white/20 transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content & Search */}
+            <div className="p-4 flex flex-col gap-3 overflow-hidden min-h-0">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, code ou téléphone..."
+                  value={chooserSearch}
+                  onChange={(e) => setChooserSearch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 font-sans"
+                  autoFocus
+                />
+                {chooserSearch && (
+                  <button
+                    onClick={() => setChooserSearch('')}
+                    className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* List Container */}
+              <div className="flex-1 max-h-[350px] overflow-y-auto pr-1 flex flex-col gap-1.5 min-h-0">
+                {activeClients
+                  .filter(c => {
+                    const search = chooserSearch.toLowerCase().trim();
+                    if (!search) return true;
+                    return (
+                      c.name.toLowerCase().includes(search) ||
+                      c.code.toLowerCase().includes(search) ||
+                      (c.contact && c.contact.toLowerCase().includes(search))
+                    );
+                  })
+                  .map(c => {
+                    const isSelected = c.id === selectedClientId;
+                    return (
+                      <div
+                        key={c.id}
+                        onDoubleClick={() => {
+                          setSelectedClientId(c.id);
+                          setSelectedRowId(null);
+                          setIsClientChooserOpen(false);
+                          setChooserSearch('');
+                        }}
+                        onClick={() => {
+                          setSelectedClientId(c.id);
+                          setSelectedRowId(null);
+                        }}
+                        className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+                          isSelected
+                            ? 'bg-emerald-50 dark:bg-slate-800/80 border-emerald-400 dark:border-emerald-500 shadow-xs'
+                            : 'bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-850'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 dark:text-white text-xs">
+                              {c.name}
+                            </span>
+                            <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-mono font-bold rounded">
+                              {c.code}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                            📞 {c.contact || 'Aucun contact'} • 📍 {c.address || "Aucune adresse"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase leading-none">Solde</span>
+                            <span className={`font-mono font-black text-xs ${
+                              c.balance > 0 
+                                ? 'text-red-650 dark:text-red-400' 
+                                : c.balance < 0 
+                                  ? 'text-green-650 dark:text-green-400' 
+                                  : 'text-slate-500 dark:text-slate-400'
+                            }`}>
+                              {(c.balance ?? 0).toLocaleString('fr-FR')} DA
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedClientId(c.id);
+                              setSelectedRowId(null);
+                              setIsClientChooserOpen(false);
+                              setChooserSearch('');
+                            }}
+                            className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            Sélectionner
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {activeClients.filter(c => {
+                  const search = chooserSearch.toLowerCase().trim();
+                  if (!search) return true;
+                  return (
+                    c.name.toLowerCase().includes(search) ||
+                    c.code.toLowerCase().includes(search) ||
+                    (c.contact && c.contact.toLowerCase().includes(search))
+                  );
+                }).length === 0 && (
+                  <div className="text-center py-8 text-slate-400 font-bold">
+                    Aucun client ne correspond à votre recherche.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 dark:bg-slate-950 px-5 py-3 border-t border-slate-200 dark:border-slate-850 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsClientChooserOpen(false);
+                  setChooserSearch('');
+                }}
+                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-300 font-extrabold text-xs rounded-lg transition-all cursor-pointer"
+              >
+                Fermer
               </button>
             </div>
           </div>

@@ -500,7 +500,7 @@ export default function PurchaseVoucherWindow({
 
   const selectedVoucher = useMemo(() => {
     if (mode === 'create') return null;
-    return purchases.find(v => v.id === selectedVoucherId) || purchases[purchases.length - 1] || null;
+    return purchases.find(v => String(v.id) === String(selectedVoucherId)) || purchases[purchases.length - 1] || null;
   }, [purchases, selectedVoucherId, mode]);
 
   // Keep selectedVoucherId valid and synchronized with current purchases
@@ -509,7 +509,7 @@ export default function PurchaseVoucherWindow({
       if (purchases.length === 0) {
         setSelectedVoucherId('');
       } else {
-        const found = purchases.some(v => v.id === selectedVoucherId);
+        const found = purchases.some(v => String(v.id) === String(selectedVoucherId));
         if (!found) {
           setSelectedVoucherId(purchases[purchases.length - 1].id);
         }
@@ -530,7 +530,7 @@ export default function PurchaseVoucherWindow({
     let baseProductsList = [...products];
     if (draft.isEditingExisting) {
       // Revert stock/cost impacts of original closed voucher for the editing workspace
-      const origVoucher = purchases.find(v => v.id === draft.id);
+      const origVoucher = purchases.find(v => String(v.id) === String(draft.id));
       if (origVoucher) {
         baseProductsList = products.map(p => {
           const item = origVoucher.items.find(i => i.code === p.code);
@@ -630,10 +630,11 @@ export default function PurchaseVoucherWindow({
     let oldBalance = selectedSupplierObj ? (Number(selectedSupplierObj.balance) || 0) : 0;
     
     // Adjust old balance if we are editing an existing voucher by subtracting the original voucher's net impact
-    if (editingVoucherId && selectedVoucher && selectedSupplierObj) {
-      if (selectedSupplierObj.name === selectedVoucher.supplier) {
-        const vTtc = Number(selectedVoucher.ttc) || 0;
-        const vVersement = Number(selectedVoucher.versement) || 0;
+    if (editingVoucherId && selectedSupplierObj) {
+      const origVoucher = purchases.find(v => String(v.id) === String(editingVoucherId));
+      if (origVoucher && selectedSupplierObj.name === origVoucher.supplier) {
+        const vTtc = Number(origVoucher.ttc) || 0;
+        const vVersement = Number(origVoucher.versement) || 0;
         const sBalance = Number(selectedSupplierObj.balance) || 0;
         oldBalance = Math.max(0, sBalance - (vTtc - vVersement));
       }
@@ -643,7 +644,7 @@ export default function PurchaseVoucherWindow({
     const newBalance = oldBalance + (ttc - safeVersement);
 
     return { rawAmount, totalQty, totalHT, tva, timbre, ttc, oldBalance, newBalance };
-  }, [draftItems, selectedSupplierObj, versement, editingVoucherId, selectedVoucher]);
+  }, [draftItems, selectedSupplierObj, versement, editingVoucherId, purchases]);
 
   // Starts voucher creation flow
   const handleNewVoucher = () => {
@@ -786,12 +787,12 @@ export default function PurchaseVoucherWindow({
         id: Math.random().toString(),
         code: targetProduct.code,
         designation: targetProduct.designation,
-        colisage: 12,
-        nbreColis: 1,
+        colisage: 0,
+        nbreColis: 0,
         pieces: 0,
-        qty: 12, // Default to a whole carton of 12
+        qty: 1, // Default to 1 unit instead of a carton of 12
         price: purchasePrice,
-        total: 12 * purchasePrice
+        total: 1 * purchasePrice
       };
       const updated_items = [...draftItems, newItem];
       setDraftItems(updated_items);
@@ -892,7 +893,7 @@ export default function PurchaseVoucherWindow({
         return {
           ...p,
           stock: finalStock,
-          stockColis: Math.ceil(finalStock / (voucherItem.colisage || 12)),
+          stockColis: voucherItem.colisage && voucherItem.colisage > 0 ? Math.ceil(finalStock / voucherItem.colisage) : 0,
           prixDeRevient: finalCostPrice,
           prixAchat: voucherItem.price
         };
@@ -1067,19 +1068,22 @@ export default function PurchaseVoucherWindow({
       return;
     }
     const n = Number(val) || 0;
-    const c = Number(prodColisage) || 12;
-    setProdQtyCalculated(n * c);
+    const c = Number(prodColisage) || 0;
+    if (c > 0) {
+      setProdQtyCalculated(n * c);
+    }
   };
 
   const handleColisageChange = (val: string) => {
     setProdColisage(val);
     if (!val) {
-      setProdQtyCalculated(0);
       return;
     }
     const n = Number(prodNbreColis) || 0;
-    const c = Number(val) || 12;
-    setProdQtyCalculated(n * c);
+    const c = Number(val) || 0;
+    if (c > 0 && n > 0) {
+      setProdQtyCalculated(n * c);
+    }
   };
 
   const handleQtyChange = (val: string) => {
@@ -1090,8 +1094,12 @@ export default function PurchaseVoucherWindow({
     }
     const qty = Number(val) || 0;
     setProdQtyCalculated(qty);
-    const c = Number(prodColisage) || 12;
-    setProdNbreColis(qty > 0 ? String(Math.floor(qty / c)) : '');
+    const c = Number(prodColisage) || 0;
+    if (c > 0) {
+      setProdNbreColis(qty > 0 ? String(Math.floor(qty / c)) : '');
+    } else {
+      setProdNbreColis('');
+    }
   };
 
   // Auto-calculate margin percentage
@@ -1121,7 +1129,7 @@ export default function PurchaseVoucherWindow({
     const sp1 = Number(prodPrixVente1) || 0;
     const sp2 = Number(prodPrixVente2) || 0;
     const sp3 = Number(prodPrixVente3) || 0;
-    const colNum = Number(prodColisage) || 12;
+    const colNum = Number(prodColisage) || 0;
     const nbreColNum = Number(prodNbreColis) || 0;
 
     // 1. Registered locally in product catalogue for the duration of this voucher session
@@ -1164,7 +1172,7 @@ export default function PurchaseVoucherWindow({
         ...existingProduct,
         designation: cleanDesignation,
         stock: existingStock, // Update starting catalog stock!
-        stockColis: Math.ceil(existingStock / colNum),
+        stockColis: colNum > 0 ? Math.ceil(existingStock / colNum) : 0,
         prixVente1: sp1,
         prixVente2: sp2,
         prixVente3: sp3,
@@ -1189,7 +1197,7 @@ export default function PurchaseVoucherWindow({
       designation: cleanDesignation,
       colisage: colNum,
       nbreColis: nbreColNum,
-      pieces: qty % colNum,
+      pieces: colNum > 0 ? qty % colNum : 0,
       qty: qty,
       price: cost,
       total: qty * cost
@@ -1470,7 +1478,24 @@ export default function PurchaseVoucherWindow({
                       `Voulez-vous vraiment supprimer le Brouillon de Bon d'Achat N° ${newVoucherId} ?`,
                       () => {
                         const idToDelete = newVoucherId;
-                        setOpenDrafts(prev => prev.filter(d => d.id !== idToDelete));
+                        const draftToDel = openDrafts.find(d => String(d.id) === String(idToDelete));
+                        if (draftToDel && onProductsUpdate) {
+                          const otherPurchasesCodes = new Set(purchases.flatMap(p => p.items.map(i => String(i.code))));
+                          const otherDraftsCodes = new Set(
+                            openDrafts
+                              .filter(d => String(d.id) !== String(idToDelete))
+                              .flatMap(d => (d.draftItems || []).map((i: any) => String(i.code)))
+                          );
+                          const cleanedProducts = products.filter(p => {
+                            const inThisDraft = (draftToDel.draftItems || []).some((i: any) => String(i.code) === String(p.code));
+                            if (inThisDraft) {
+                              return otherPurchasesCodes.has(String(p.code)) || otherDraftsCodes.has(String(p.code));
+                            }
+                            return true;
+                          });
+                          onProductsUpdate(cleanedProducts);
+                        }
+                        setOpenDrafts(prev => prev.filter(d => String(d.id) !== String(idToDelete)));
                         setMode('view');
                         setEditingVoucherId(null);
                         if (purchases.length > 0) {
@@ -1582,13 +1607,7 @@ export default function PurchaseVoucherWindow({
                     displayTtc = draftMetrics.ttc ?? 0;
                   } else if (isDraft) {
                     const items = v.draftItems || [];
-                    const rawAmount = items.reduce((sum: number, it: any) => sum + ((it.price || 0) * (it.qty || 0)), 0);
-                    const tva = items.reduce((acc: number, item: any) => {
-                      const ht = (item.price || 0) * (item.qty || 0);
-                      const tvaVal = ht * ((item.tvaRate || 19) / 100);
-                      return acc + tvaVal;
-                    }, 0);
-                    displayTtc = Math.round((rawAmount + tva) * 100) / 100;
+                    displayTtc = items.reduce((sum: number, it: any) => sum + ((it.price || 0) * (it.qty || 0)), 0);
                   } else {
                     displayTtc = v.ttc ?? 0;
                   }
@@ -1972,7 +1991,7 @@ export default function PurchaseVoucherWindow({
                         <td className="px-3 py-2 font-mono font-bold text-slate-900 dark:text-white">{item.code}</td>
                         <td className="px-3 py-2 font-sans truncate select-all">{item.designation}</td>
                         <td className="px-1 py-2 text-center font-mono">{item.nbreColis ?? 0}</td>
-                        <td className="px-1 py-2 text-center text-slate-400 dark:text-slate-500 font-mono">{item.colisage ?? 12}</td>
+                        <td className="px-1 py-2 text-center text-slate-400 dark:text-slate-500 font-mono">{item.colisage ?? 0}</td>
                         <td className={`px-1 py-2 text-center font-mono font-bold ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-indigo-950 dark:text-indigo-300'}`}>{item.qty}</td>
                         <td className="px-3 py-2 text-right font-mono font-bold">
                           {(item.price ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}

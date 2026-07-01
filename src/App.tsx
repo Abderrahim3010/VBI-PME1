@@ -638,7 +638,7 @@ export default function App() {
   };
 
   const handleUpdatePurchaseVoucher = (oldId: string, updatedVoucher: PurchaseVoucher) => {
-    const oldVoucher = purchases.find(p => p.id === oldId);
+    const oldVoucher = purchases.find(p => String(p.id) === String(oldId));
 
     // 2. Update supplier balance
     setSuppliers(prevSuppliers => {
@@ -663,7 +663,7 @@ export default function App() {
     });
 
     // 3. Replace in purchases list
-    setPurchases(prev => prev.map(p => p.id === oldId ? updatedVoucher : p));
+    setPurchases(prev => prev.map(p => String(p.id) === String(oldId) ? updatedVoucher : p));
 
     // Security logging
     addLog(`Modification Bon d'Achat N° ${updatedVoucher.id} (Fournisseur: ${updatedVoucher.supplier}, Nouveau TTC: ${updatedVoucher.ttc} DA)`);
@@ -680,6 +680,10 @@ export default function App() {
       // Find codes of products that are in other purchases
       const codesInOtherPurchases = new Set(
         otherPurchases.flatMap(p => p.items.map(item => String(item.code)))
+      );
+      // Find codes of products that are in sales
+      const codesInSales = new Set(
+        sales.flatMap(s => s.items.map(item => String(item.code)))
       );
 
       return prevProducts
@@ -701,11 +705,11 @@ export default function App() {
           return p;
         })
         .filter(p => {
-          // If the product was in target.items, check if it's in other purchases.
-          // If it's NOT in other purchases, delete it entirely from the system catalog!
+          // If the product was in target.items, check if it's in other purchases or sales.
+          // If it's NOT in other purchases or sales, delete it entirely from the system catalog!
           const wasInTarget = target.items.some(i => String(i.code) === String(p.code));
           if (wasInTarget) {
-            const isKeep = codesInOtherPurchases.has(String(p.code));
+            const isKeep = codesInOtherPurchases.has(String(p.code)) || codesInSales.has(String(p.code));
             return isKeep;
           }
           return true;
@@ -767,7 +771,7 @@ export default function App() {
   };
 
   const handleUpdateSalesVoucher = (oldId: string, updatedVoucher: SalesVoucher) => {
-    const oldVoucher = sales.find(s => s.id === oldId);
+    const oldVoucher = sales.find(s => String(s.id) === String(oldId));
 
     // Update client balance
     setClients(prevClients => {
@@ -795,7 +799,7 @@ export default function App() {
     });
 
     // Replace in sales list
-    setSales(prev => prev.map(s => s.id === oldId ? updatedVoucher : s));
+    setSales(prev => prev.map(s => String(s.id) === String(oldId) ? updatedVoucher : s));
 
     // Security logging
     addLog(`Modification Bon de Livraison N° ${updatedVoucher.id} (Client: ${updatedVoucher.client}, Nouveau TTC: ${updatedVoucher.ttc} DA)`);

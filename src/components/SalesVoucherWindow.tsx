@@ -294,7 +294,7 @@ export default function SalesVoucherWindow({
 
   const selectedSale = useMemo(() => {
     if (mode === 'create') return null;
-    return sales.find(s => s.id === selectedSaleId) || sales[sales.length - 1] || null;
+    return sales.find(s => String(s.id) === String(selectedSaleId)) || sales[sales.length - 1] || null;
   }, [sales, selectedSaleId, mode]);
 
   const selectVoucherById = (id: string, customNavList?: typeof navigableVouchers) => {
@@ -416,8 +416,8 @@ export default function SalesVoucherWindow({
   };
 
   const removeDraft = (id: string) => {
-    setOpenVouchers(prev => prev.filter(v => v.id !== id));
-    if (activeDraftId === id) {
+    setOpenVouchers(prev => prev.filter(v => String(v.id) !== String(id)));
+    if (String(activeDraftId) === String(id)) {
       setActiveDraftId(null);
       setMode('view');
       if (sales.length > 0) {
@@ -471,9 +471,20 @@ export default function SalesVoucherWindow({
       : (selectedSale?.timbre || 0);
 
     const ttc = totalHT + tva + activeTimbre;
-    const oldBalance = mode === 'create'
-      ? (selectedClientObj ? Number(selectedClientObj.balance) || 0 : 0)
-      : (selectedSale?.oldBalance ?? 0);
+    let oldBalance = 0;
+    if (mode === 'create') {
+      oldBalance = selectedClientObj ? Number(selectedClientObj.balance) || 0 : 0;
+      if (editingVoucherId && selectedClientObj) {
+        const origSale = sales.find(s => String(s.id) === String(editingVoucherId));
+        if (origSale && selectedClientObj.name === origSale.client) {
+          const sTtc = Number(origSale.ttc) || 0;
+          const sVersement = Number(origSale.versement) || 0;
+          oldBalance = Math.max(0, oldBalance - (sTtc - sVersement));
+        }
+      }
+    } else {
+      oldBalance = selectedSale?.oldBalance ?? 0;
+    }
     
     const activeVersement = mode === 'create' ? versement : (selectedSale?.versement || 0);
     const newBalance = mode === 'view'
@@ -492,7 +503,7 @@ export default function SalesVoucherWindow({
       totalQty: items.reduce((acc, item) => acc + item.qty, 0),
       colisCount: items.reduce((acc, item) => acc + (item.nbreColis || 0), 0)
     };
-  }, [draftItems, selectedSale, mode, selectedClientObj, versement, remise, tvaRate]);
+  }, [draftItems, selectedSale, mode, selectedClientObj, versement, remise, tvaRate, editingVoucherId, sales]);
 
   // Active items helper reference
   const currentItems = mode === 'create' ? draftItems : (selectedSale?.items || []);
@@ -613,7 +624,7 @@ export default function SalesVoucherWindow({
 
     // Reset selection in the current component view
     if (sales.length > 1) {
-      const remainingSales = sales.filter(s => s.id !== selectedSale.id);
+      const remainingSales = sales.filter(s => String(s.id) !== String(selectedSale.id));
       if (remainingSales.length > 0) {
         setSelectedSaleId(remainingSales[remainingSales.length - 1].id);
       }
@@ -632,7 +643,7 @@ export default function SalesVoucherWindow({
     }
 
     // Check if this voucher is already open in our drafts
-    const existingDraft = openVouchers.find(v => v.id === selectedSale.id && v.isEditingExisting);
+    const existingDraft = openVouchers.find(v => String(v.id) === String(selectedSale.id) && v.isEditingExisting);
     if (existingDraft) {
       loadDraft(existingDraft);
       return;

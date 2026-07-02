@@ -565,6 +565,11 @@ export default function SalesVoucherWindow({
   }, [currentItems, viewingItemCode]);
 
   const startCreateMode = () => {
+    if (!config?.isActivated && sales.length >= 1) {
+      showRetroAlert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 bon de vente en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.", "Saisie ventes");
+      return;
+    }
+
     // 1. Check if there is an empty draft
     const hasEmptyDraft = openVouchers.some(v => v.draftItems.length === 0);
     if (hasEmptyDraft || (mode === 'create' && draftItems.length === 0)) {
@@ -766,6 +771,11 @@ export default function SalesVoucherWindow({
       }
       return c;
     });
+
+    if (!editingVoucherId && !config?.isActivated && sales.length >= 1) {
+      alert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 bon de vente en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.");
+      return;
+    }
 
     if (editingVoucherId) {
       onUpdateSale(editingVoucherId, savedVoucher);

@@ -17,6 +17,7 @@ interface ProductListWindowProps {
   onProductsUpdate?: (updatedProducts: Product[]) => void;
   createdFamilles?: string[];
   onCreatedFamillesChange?: (familles: string[] | ((prev: string[]) => string[])) => void;
+  config?: any;
 }
 
 // Helper to convert DD/MM/YYYY to YYYY-MM-DD (ISO format for date inputs)
@@ -50,7 +51,8 @@ export default function ProductListWindow({
   onClose,
   onProductsUpdate,
   createdFamilles: propCreatedFamilles,
-  onCreatedFamillesChange
+  onCreatedFamillesChange,
+  config
 }: ProductListWindowProps) {
   const [searchTermName, setSearchTermName] = useState('');
   const [searchTermCode, setSearchTermCode] = useState('');
@@ -291,6 +293,11 @@ export default function ProductListWindow({
       prixVente3: Number(formPrixVente3),
       detail: formDetail.trim() || undefined
     };
+
+    if (isAddingNew && !config?.isActivated && products.length >= 1) {
+      alert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 produit en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations pour débloquer toutes les fonctionnalités.");
+      return;
+    }
 
     if (isAddingNew) {
       onAddProduct(payload);

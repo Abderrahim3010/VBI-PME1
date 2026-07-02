@@ -671,6 +671,10 @@ export default function PurchaseVoucherWindow({
 
   // Starts voucher creation flow
   const handleNewVoucher = () => {
+    if (!config?.isActivated && purchases.length >= 1) {
+      showRetroAlert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 bon d'achat en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.", "Saisie achats");
+      return;
+    }
     setIsSupplierSelectOpen(true);
     if (suppliers.length > 0) {
       setSupplierSelectType('existing');
@@ -923,6 +927,11 @@ export default function PurchaseVoucherWindow({
       }
       return p;
     });
+
+    if (!editingVoucherId && !config?.isActivated && purchases.length >= 1) {
+      showRetroAlert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 bon d'achat en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.", "Saisie achats");
+      return;
+    }
 
     if (editingVoucherId) {
       if (onUpdatePurchase) {

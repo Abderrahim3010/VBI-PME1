@@ -13,6 +13,7 @@ interface ClientsSuppliersWindowProps {
   onDeleteClient?: (id: string) => void;
   onDeleteSupplier?: (id: string) => void;
   onClose: () => void;
+  config?: any;
 }
 
 export default function ClientsSuppliersWindow({
@@ -25,7 +26,8 @@ export default function ClientsSuppliersWindow({
   onUpdateSupplier,
   onDeleteClient,
   onDeleteSupplier,
-  onClose
+  onClose,
+  config
 }: ClientsSuppliersWindowProps) {
   // Modal states
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -65,7 +67,7 @@ export default function ClientsSuppliersWindow({
     setIsAddingNew(true);
   };
 
-  // Save (Create or Update) handler
+    // Save (Create or Update) handler
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !code.trim()) return;
@@ -73,6 +75,17 @@ export default function ClientsSuppliersWindow({
     if (mode === 'clients' && name.trim().toUpperCase() === 'ANONYME') {
       alert("Le nom 'Anonyme' est réservé au client par défaut du système et ne peut pas être recréé.");
       return;
+    }
+
+    if (!editingItem) {
+      if (mode === 'clients' && !config?.isActivated && clients.length >= 1) {
+        alert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 client en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.");
+        return;
+      }
+      if (mode === 'suppliers' && !config?.isActivated && suppliers.length >= 1) {
+        alert("⚠️ Limite Démo : Vous ne pouvez pas créer plus de 1 fournisseur en mode évaluation (démo). Veuillez activer l'application avec un code d'activation dans les configurations.");
+        return;
+      }
     }
 
     if (editingItem) {

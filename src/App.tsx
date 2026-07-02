@@ -1541,6 +1541,7 @@ export default function App() {
               onClose={() => closeWindow('products')}
               createdFamilles={createdFamilles}
               onCreatedFamillesChange={setCreatedFamilles}
+              config={config}
             />
           </WindowFrame>
  
@@ -1641,6 +1642,7 @@ export default function App() {
               onDeleteClient={handleDeleteClient}
               onDeleteSupplier={handleDeleteSupplier}
               onClose={() => closeWindow('clients')}
+              config={config}
             />
           </WindowFrame>
  
@@ -1673,6 +1675,7 @@ export default function App() {
               onDeleteClient={handleDeleteClient}
               onDeleteSupplier={handleDeleteSupplier}
               onClose={() => closeWindow('suppliers')}
+              config={config}
             />
           </WindowFrame>
 

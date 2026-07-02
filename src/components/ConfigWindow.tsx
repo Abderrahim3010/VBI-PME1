@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { 
   Settings, Save, LogOut, Upload, Trash2, Image, Sliders, 
   CheckSquare, Square, Users, Truck, FileText, Check, HelpCircle, 
-  RotateCcw, SlidersHorizontal, Layers, Database, Printer, HardDrive, Cpu
+  RotateCcw, SlidersHorizontal, Layers, Database, Printer, HardDrive, Cpu,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ConfigWindowProps {
@@ -18,6 +19,11 @@ export default function ConfigWindow({
 }: ConfigWindowProps) {
   const [activeTab, setActiveTab] = useState<'delivery' | 'invoice' | 'affichage'>('delivery');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Activation modal states
+  const [isActivationOpen, setIsActivationOpen] = useState(false);
+  const [activationCodeInput, setActivationCodeInput] = useState('');
+  const [activationError, setActivationError] = useState('');
   
   // Tab 1: Informations sur bon de livraison
   const [deliveryNom, setDeliveryNom] = useState(config?.deliveryInfo?.nomRaisonSociale || config?.company || 'VBI PME SPECIAL DE LA ME');
@@ -129,6 +135,35 @@ export default function ConfigWindow({
     onUpdateConfig(updatedConfig);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleActivationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = activationCodeInput.trim().toUpperCase();
+    const validCodes = ['VBI-PME-2026', 'VBI-PME', 'DEMO-ACTIVATE', '123456', '777'];
+    
+    if (validCodes.includes(cleanCode)) {
+      const updatedConfig = {
+        ...config,
+        isActivated: true
+      };
+      onUpdateConfig(updatedConfig);
+      setIsActivationOpen(false);
+      setActivationCodeInput('');
+      setActivationError('');
+    } else {
+      setActivationError("Code d'activation invalide. Veuillez réessayer ou utiliser le code de démonstration.");
+    }
+  };
+
+  const handleDeactivate = () => {
+    if (confirm("Voulez-vous désactiver la licence et repasser en mode évaluation ?")) {
+      const updatedConfig = {
+        ...config,
+        isActivated: false
+      };
+      onUpdateConfig(updatedConfig);
+    }
   };
 
   const toggleButtonVisibility = (id: string) => {
@@ -254,6 +289,40 @@ export default function ConfigWindow({
             <Database size={13} />
             <span className="truncate">Base de données</span>
           </button>
+
+          {/* Activation System section at bottom of left panel */}
+          <div className="mt-auto pt-3 border-t border-slate-300 dark:border-slate-800 flex flex-col gap-2">
+            <div className="p-2.5 rounded-lg bg-indigo-50/70 dark:bg-slate-900/40 border border-indigo-200/40 dark:border-slate-800 flex flex-col gap-1 text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Licence du Système</span>
+              {config?.isActivated ? (
+                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+                  🛡️ Version Active
+                </span>
+              ) : (
+                <span className="text-[10px] font-black text-amber-600 dark:text-amber-500 flex items-center justify-center gap-1 animate-pulse">
+                  ⚠️ Mode Évaluation
+                </span>
+              )}
+            </div>
+            
+            {config?.isActivated ? (
+              <button
+                type="button"
+                onClick={handleDeactivate}
+                className="w-full text-center py-2 px-2 bg-slate-250 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg flex items-center justify-center gap-1.5 font-bold transition-all duration-150 border border-slate-300 dark:border-slate-700 text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 shadow-xs"
+              >
+                🔑 Désactiver
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsActivationOpen(true)}
+                className="w-full text-center py-2.5 px-2 bg-gradient-to-r from-amber-500 to-rose-600 hover:brightness-110 text-white rounded-lg flex items-center justify-center gap-1.5 font-extrabold transition-all duration-150 text-[10.5px] uppercase tracking-wide cursor-pointer active:scale-95 shadow-md shadow-rose-900/10"
+              >
+                🔑 Activer la v3.0
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Right content workspace pane */}
@@ -796,6 +865,96 @@ export default function ConfigWindow({
         </div>
 
       </div>
+
+      {/* Embedded Activation Code Dialog/Modal */}
+      {isActivationOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-fade-in">
+          <div className="w-[380px] bg-white dark:bg-slate-900 rounded-2xl border border-indigo-200 dark:border-slate-800 shadow-2xl p-5 select-none text-left">
+            <div className="flex items-center gap-2 mb-3 border-b border-slate-150 dark:border-slate-850 pb-2">
+              <span className="text-base">🔑</span>
+              <h2 className="text-[13px] font-black uppercase text-indigo-950 dark:text-sky-405 tracking-wider">
+                Activation de la Licence
+              </h2>
+            </div>
+
+            <form onSubmit={handleActivationSubmit} className="flex flex-col gap-3">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal font-semibold">
+                Saisissez votre clé d'activation pour lever toutes les restrictions du mode évaluation (produits, clients, achats, ventes).
+              </p>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black text-slate-700 dark:text-slate-350 uppercase tracking-wide">
+                  Code d'activation :
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  placeholder="Ex: VBI-PME-2026"
+                  value={activationCodeInput}
+                  onChange={(e) => {
+                    setActivationCodeInput(e.target.value);
+                    if (activationError) setActivationError('');
+                  }}
+                  className="w-full h-9 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider focus:outline-hidden focus:ring-1 focus:ring-indigo-500 dark:focus:ring-sky-500"
+                />
+              </div>
+
+              {activationError && (
+                <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-955/20 border border-rose-200/50 text-rose-700 dark:text-rose-450 font-bold text-[10px] leading-normal flex items-start gap-1">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>{activationError}</span>
+                </div>
+              )}
+
+              {/* Helpful Demo/Trial Activation Codes */}
+              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl p-3 flex flex-col gap-1.5">
+                <span className="text-[9px] font-black text-indigo-950 dark:text-indigo-400 uppercase tracking-wider">
+                  💡 Codes de Test Disponibles :
+                </span>
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {['VBI-PME-2026', '123456', '777'].map(code => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => {
+                        setActivationCodeInput(code);
+                        setActivationError('');
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-750 dark:text-slate-350 border border-slate-200 dark:border-slate-750 font-mono text-[9px] font-bold rounded-md transition-colors shadow-2xs"
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[8.5px] text-slate-400 dark:text-slate-500 italic mt-0.5 leading-none">
+                  (Cliquez sur un code pour l'insérer automatiquement)
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-150 dark:border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActivationOpen(false);
+                    setActivationCodeInput('');
+                    setActivationError('');
+                  }}
+                  className="px-3.5 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-lg text-xs cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4.5 h-8 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-extrabold rounded-lg text-xs cursor-pointer shadow-md shadow-emerald-950/10"
+                >
+                  Activer maintenant
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

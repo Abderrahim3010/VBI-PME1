@@ -27,6 +27,7 @@ interface SalesVoucherWindowProps {
   onClientsUpdate: (clients: Client[]) => void;
   onClose: () => void;
   isOpen?: boolean;
+  config?: any;
 }
 
 export default function SalesVoucherWindow({
@@ -39,7 +40,8 @@ export default function SalesVoucherWindow({
   onProductsUpdate,
   onClientsUpdate,
   onClose,
-  isOpen = false
+  isOpen = false,
+  config
 }: SalesVoucherWindowProps) {
   // Selection/navigation between previous invoices
   const [selectedSaleId, setSelectedSaleId] = useState<string>(() => {
@@ -78,7 +80,7 @@ export default function SalesVoucherWindow({
 
   // Mode de paiement modal states
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<'ESPECE' | 'A_TERME'>('ESPECE');
+  const [paymentMode, setPaymentMode] = useState<'ESPECE' | 'A_TERME'>(() => config?.deliveryInfo?.defaultPayModeDelivery || 'ESPECE');
   const [paymentSource, setPaymentSource] = useState('CAISSE PRINCIPALE');
   const [paymentVersement, setPaymentVersement] = useState<number>(0);
 
@@ -702,9 +704,10 @@ export default function SalesVoucherWindow({
       return;
     }
 
-    // Default to ESPECE with pre-filled full versement
-    setPaymentMode('ESPECE');
-    setPaymentVersement(Number((computedMetrics.ttc).toFixed(2)));
+    // Default to config default pay mode with pre-filled full versement
+    const defaultMode = config?.deliveryInfo?.defaultPayModeDelivery || 'ESPECE';
+    setPaymentMode(defaultMode);
+    setPaymentVersement(defaultMode === 'A_TERME' ? 0 : Number((computedMetrics.ttc).toFixed(2)));
     setPaymentSource('CAISSE PRINCIPALE');
     setIsPaymentDialogOpen(true);
   };

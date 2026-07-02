@@ -15,6 +15,7 @@ interface PurchaseVoucherWindowProps {
   createdFamilles?: string[];
   onCreatedFamillesChange?: (familles: string[] | ((prev: string[]) => string[])) => void;
   isOpen?: boolean;
+  config?: any;
 }
 
 export default function PurchaseVoucherWindow({
@@ -29,7 +30,8 @@ export default function PurchaseVoucherWindow({
   onAddSupplier,
   createdFamilles: propCreatedFamilles,
   onCreatedFamillesChange,
-  isOpen = false
+  isOpen = false,
+  config
 }: PurchaseVoucherWindowProps) {
   // Navigation / Selection of historical vouchers
   const [selectedVoucherId, setSelectedVoucherId] = useState<string>(
@@ -222,7 +224,7 @@ export default function PurchaseVoucherWindow({
 
   // Mode de paiement modal states
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [paymentMode, setPaymentMode] = useState('ESPECE');
+  const [paymentMode, setPaymentMode] = useState(() => config?.deliveryInfo?.defaultPayModePurchase || 'ESPECE');
   const [paymentSource, setPaymentSource] = useState('COFFRE N°1');
   const [paymentVersement, setPaymentVersement] = useState<number>(0);
 
@@ -852,8 +854,8 @@ export default function PurchaseVoucherWindow({
   // Opens Mode de paiement popup instead of saving directly
   const handleSaveVoucher = () => {
     // Determine payment mode and pre-filled versement
-    // If the main column's versement is 0, default to credit 'A_TERME'
-    const defaultMode = (versement === 0) ? 'A_TERME' : 'ESPECE';
+    // If config has default, use it. Otherwise, if the main column's versement is 0, default to credit 'A_TERME'
+    const defaultMode = config?.deliveryInfo?.defaultPayModePurchase || ((versement === 0) ? 'A_TERME' : 'ESPECE');
     
     setPaymentVersement(versement);
     setPaymentSource('COFFRE N°1');

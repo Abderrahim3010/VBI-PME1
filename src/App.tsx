@@ -94,7 +94,56 @@ export default function App() {
   const DEFAULT_CONFIG = {
     company: 'VBI PME SPECIAL DE LA ME',
     user: 'HICHEM',
-    isActivated: false
+    isActivated: false,
+    deliveryInfo: {
+      nomRaisonSociale: 'VBI PME SPECIAL DE LA ME',
+      detail1: 'Tél: 0550 00 00 00',
+      detail2: 'Alger, Algérie',
+      detail3: 'RC: 16/00-1234567B12',
+      messageTicket: 'MERCI DE VOTRE VISITE EN ESPERANT VOUS REVOIR',
+      logo: '',
+      rc: '',
+      article: '',
+      nis: '',
+      nif: '',
+      compteBancaire: '',
+      defaultPayModeDelivery: 'ESPECE',
+      defaultPayModePurchase: 'ESPECE',
+      defaultTarifMode: 'Tarif 1'
+    },
+    invoiceInfo: {
+      nomRaisonSociale: 'VBI PME SPECIAL DE LA ME',
+      detail1: 'Tél: 0550 00 00 00',
+      detail2: 'Alger, Algérie',
+      detail3: 'RC: 16/00-1234567B12',
+      logo: ''
+    },
+    affichage: {
+      backgroundImage: '',
+      visibleButtons: {
+        purchases: true,
+        sales: true,
+        products: true,
+        suppliers: true,
+        clients: true,
+        situation: true,
+        situation_clients: true,
+        bons_achats: true,
+        bons_ventes: true,
+        stats: true,
+        inventaire: true,
+        etat_journee: true,
+        comptes_bancaires: true,
+        coffre: true,
+        caisses_reseau: true,
+        tiroir_caisse: true,
+        configuration: true,
+        verrouiller: true,
+        rendez_vous: true,
+        sauvegarde: true,
+        quitter: true
+      }
+    }
   };
 
   const DEFAULT_TRANSACTION_LOGS: TransactionLog[] = [
@@ -936,7 +985,7 @@ export default function App() {
   };
 
   // Update company profile settings
-  const handleUpdateConfig = (newConfig: { company: string; user: string; isActivated: boolean }) => {
+  const handleUpdateConfig = (newConfig: any) => {
     setConfig(newConfig);
   };
 
@@ -1108,101 +1157,121 @@ export default function App() {
           <span className="text-sky-600 dark:text-sky-450 tracking-wider font-extrabold uppercase">{config.company}</span>
         </div>
       </div>
- 
+
       {/* 2. OS Quick Toolbar with Icons (Image 2 and 3 style) */}
       <div className="bg-slate-205/85 dark:bg-slate-900/80 backdrop-blur-md p-2 border-b border-slate-300 dark:border-slate-800 flex items-center gap-1.5 flex-wrap z-30 select-none shadow-md transition-colors duration-300">
         
-        <button
-          onClick={() => launchWindow('purchases')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📥</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Saisie Achats</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F1</span>
-        </button>
+        {config?.affichage?.visibleButtons?.purchases !== false && (
+          <button
+            onClick={() => launchWindow('purchases')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📥</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Saisie Achats</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F1</span>
+          </button>
+        )}
  
-        <button
-          onClick={() => launchWindow('sales')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📤</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Saisie Ventes</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F2</span>
-        </button>
+        {config?.affichage?.visibleButtons?.sales !== false && (
+          <button
+            onClick={() => launchWindow('sales')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📤</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Saisie Ventes</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F2</span>
+          </button>
+        )}
  
-        <button
-          onClick={() => launchWindow('products')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📦</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Catalogue</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F3</span>
-        </button>
+        {config?.affichage?.visibleButtons?.products !== false && (
+          <button
+            onClick={() => launchWindow('products')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📦</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Catalogue</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F3</span>
+          </button>
+        )}
  
-        <button
-          onClick={() => launchWindow('suppliers')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">🏢</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Fournisseurs</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F4</span>
-        </button>
+        {config?.affichage?.visibleButtons?.suppliers !== false && (
+          <button
+            onClick={() => launchWindow('suppliers')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">🏢</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Fournisseurs</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F4</span>
+          </button>
+        )}
  
-        <button
-          onClick={() => launchWindow('clients')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">👥</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Clients</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F5</span>
-        </button>
-
+        {config?.affichage?.visibleButtons?.clients !== false && (
+          <button
+            onClick={() => launchWindow('clients')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">👥</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Clients</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F5</span>
+          </button>
+        )}
+ 
         <div className="h-8 w-[1px] bg-slate-350 dark:bg-slate-800 mx-1.5" />
-
-        <button
-          onClick={() => launchWindow('situation')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📕</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Situation Fourn.</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F6</span>
-        </button>
-
-        <button
-          onClick={() => launchWindow('situation_clients')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📗</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Situation Client</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F7</span>
-        </button>
-
-        <button
-          onClick={() => launchWindow('stats')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">📊</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Statistiques</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F8</span>
-        </button>
-
-        <button
-          onClick={() => launchWindow('products')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">🔍</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Inventaire</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F9</span>
-        </button>
-
-        <button
-          onClick={() => launchWindow('caisse')}
-          className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
-        >
-          <span className="text-lg">💵</span>
-          <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Coffre Caisse</span>
-          <span className="text-[7px] text-slate-500 font-bold tracking-tight">F10</span>
-        </button>
+ 
+        {config?.affichage?.visibleButtons?.situation !== false && (
+          <button
+            onClick={() => launchWindow('situation')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📕</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Situation Fourn.</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F6</span>
+          </button>
+        )}
+ 
+        {config?.affichage?.visibleButtons?.situation_clients !== false && (
+          <button
+            onClick={() => launchWindow('situation_clients')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📗</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Situation Client</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F7</span>
+          </button>
+        )}
+ 
+        {config?.affichage?.visibleButtons?.stats !== false && (
+          <button
+            onClick={() => launchWindow('stats')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">📊</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Statistiques</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F8</span>
+          </button>
+        )}
+ 
+        {config?.affichage?.visibleButtons?.inventaire !== false && (
+          <button
+            onClick={() => launchWindow('products')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">🔍</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Inventaire</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F9</span>
+          </button>
+        )}
+ 
+        {config?.affichage?.visibleButtons?.coffre !== false && (
+          <button
+            onClick={() => launchWindow('caisse')}
+            className="px-2.5 py-1 flex flex-col items-center min-w-[70px] h-[52px] justify-center text-center bg-white/50 dark:bg-slate-950/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 active:scale-95 text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-300 dark:border-slate-800 hover:border-slate-450 dark:hover:border-slate-705 rounded-lg shadow-sm transition-all duration-200"
+          >
+            <span className="text-lg">💵</span>
+            <span style={{ fontSize: '13px', fontFamily: 'Arial' }} className="text-[10px] font-sans font-bold leading-none mt-1">Coffre Caisse</span>
+            <span className="text-[7px] text-slate-500 font-bold tracking-tight">F10</span>
+          </button>
+        )}
 
         <div className="flex-1 flex justify-end gap-2 items-center px-3">
           <button
@@ -1216,14 +1285,19 @@ export default function App() {
  
       {/* 3. Main Desktop Workspace Container - Windows 7 Aero glassy background layout */}
       <div 
-        className="flex-1 min-h-0 flex relative bg-sky-900 select-none overflow-hidden transition-all duration-300" 
-        style={theme === 'dark' ? { 
+        className="flex-1 min-h-0 flex relative bg-sky-900 select-none overflow-hidden transition-all duration-300 animate-fade-in" 
+        style={config?.affichage?.backgroundImage ? {
+          backgroundImage: `url(${config.affichage.backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          boxShadow: 'inset 0 0 150px rgba(0,0,0,0.25)'
+        } : (theme === 'dark' ? { 
           background: 'radial-gradient(ellipse at 80% 10%, rgba(56,189,248,0.7) 0%, rgba(14,165,233,0.5) 30%, rgba(2,132,199,0.9) 70%, rgba(3,73,124,1) 100%)',
           boxShadow: 'inset 0 0 200px rgba(0,0,0,0.4)'
         } : {
           background: 'radial-gradient(ellipse at 80% 10%, rgba(224,242,254,1) 0%, rgba(186,230,253,0.95) 40%, rgba(125,211,252,0.85) 70%, rgba(56,189,248,0.75) 100%)',
           boxShadow: 'inset 0 0 150px rgba(255,255,255,0.35)'
-        }}
+        })}
       >
         {/* Beautiful wave streak graphics matching the official Windows 7 wallpaper */}
         <div className={`absolute inset-0 pointer-events-none select-none transition-opacity duration-300 ${theme === 'dark' ? 'opacity-30' : 'opacity-40'}`}>
@@ -1501,6 +1575,7 @@ export default function App() {
               onAddSupplier={handleAddSupplier}
               createdFamilles={createdFamilles}
               onCreatedFamillesChange={setCreatedFamilles}
+              config={config}
             />
           </WindowFrame>
 
@@ -1533,6 +1608,7 @@ export default function App() {
               onProductsUpdate={setProducts}
               onClientsUpdate={setClients}
               onClose={() => closeWindow('sales')}
+              config={config}
             />
           </WindowFrame>
 
@@ -1719,8 +1795,8 @@ export default function App() {
             zIndex={windows.find(w => w.id === 'configuration')?.zIndex || 10}
             initialX={windows.find(w => w.id === 'configuration')?.x || 210}
             initialY={windows.find(w => w.id === 'configuration')?.y || 90}
-            width="w-[650px]"
-            height="h-[440px]"
+            width="w-[880px]"
+            height="h-[620px]"
             onClose={() => closeWindow('configuration')}
             onMinimize={() => minimizeWindow('configuration')}
             onMaximize={() => toggleMaximizeWindow('configuration')}
@@ -1728,9 +1804,7 @@ export default function App() {
             scale={scale}
           >
             <ConfigWindow
-              currentCompany={config.company}
-              currentUser={config.user}
-              isActivated={config.isActivated}
+              config={config}
               onUpdateConfig={handleUpdateConfig}
               onClose={() => closeWindow('configuration')}
             />
